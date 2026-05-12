@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title th:text="${title} ?: 'Family Chore Tracker'">Family Chore Tracker</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+<nav class="navbar">
+    <div class="nav-container">
+        <a href="/dashboard" class="nav-brand">🏠 Family Chore Tracker</a>
+        <div class="nav-menu">
+            <a href="/dashboard" class="nav-link">Dashboard</a>
+            <a href="/chores" class="nav-link">My Tasks</a>
+            <a href="/planning" class="nav-link">Weekly Plan</a>
+            <a href="/family" class="nav-link">Family</a>
+            <a href="/reports" class="nav-link">Reports</a>
+            <a href="/logout" class="nav-link logout">Logout</a>
+        </div>
+        <div class="user-info">
+            <span th:text="${#authentication.name}"></span>
+        </div>
+    </div>
+</nav>
+
+<main class="container">
+    <div th:if="${message}" class="alert alert-success" th:text="${message}"></div>
+    <div th:if="${error}" class="alert alert-danger" th:text="${error}"></div>
+
+    <div th:replace="${content} :: content"></div>
+</main>
+
+<footer class="footer">
+    <p>&copy; 2024 Family Chore Tracker. All rights reserved.</p>
+</footer>
+</body>
+</html>

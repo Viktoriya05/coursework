@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      layout:decorate="~{layout}">
+<head>
+    <title>Reports - Family Chore Tracker</title>
+</head>
+<body>
+<div layout:fragment="content">
+    <div class="page-header">
+        <h1>Reports & Analytics</h1>
+        <div class="week-nav">
+            <a th:href="@{/reports(weekStart=${currentWeek.minusWeeks(1)})}" class="btn btn-secondary">← Previous Week</a>
+            <span class="week-range" th:text="${#temporals.format(currentWeek, 'MMM dd')} + ' - ' + ${#temporals.format(currentWeek.plusDays(6), 'MMM dd, yyyy')}"></span>
+            <a th:href="@{/reports(weekStart=${currentWeek.plusWeeks(1)})}" class="btn btn-secondary">Next Week →</a>
+        </div>
+    </div>
+
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-value" th:text="${userStats.totalChoresCompleted}">0</div>
+            <div class="stat-label">Total Tasks Completed</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value" th:text="${userStats.totalHoursSpent} + 'h'">0h</div>
+            <div class="stat-label">Total Time Spent</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value" th:text="${userStats.user.points}">0</div>
+            <div class="stat-label">Total Points Earned</div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h3>Weekly Family Time Distribution</h3>
+        <div class="chart-container">
+            <table class="stats-table">
+                <thead>
+                <tr>
+                    <th>Member</th>
+                    <th>Total Minutes</th>
+                    <th>Categories</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="entry : ${weeklyStats.userTotalMinutes}">
+                    <td th:text="${entry.key}"></td>
+                    <td th:text="${entry.value} + ' min'"></td>
+                    <td>
+                            <span th:each="cat : ${weeklyStats.userCategoryMinutes.get(entry.key)}" class="category-badge">
+                                <span th:text="${cat.key}"></span>: <span th:text="${cat.value}"></span> min
+                            </span>
+                    </td>
+                </tr>
+                </tbody>
+                <tfoot>
+                <tr class="total-row">
+                    <td><strong>Family Total</strong></td>
+                    <td><strong th:text="${weeklyStats.familyTotalMinutes} + ' min'"></strong></td>
+                    <td></td>
+                </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+
+    <div class="card">
+        <h3>Category Breakdown</h3>
+        <div class="category-stats">
+            <div th:each="entry : ${userStats.categoryTimeMap}" class="category-stat">
+                <div class="category-header">
+                    <span th:text="${entry.key}"></span>
+                    <span th:text="${entry.value} + ' min'"></span>
+                </div>
+                <div class="category-bar">
+                    <div class="category-bar-fill" th:style="'width: ' + (${entry.value} * 100 / ${userStats.totalMinutesSpent}) + '%'"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h3>Points Leaderboard</h3>
+        <table class="stats-table">
+            <thead>
+            <tr>
+                <th>Rank</th>
+                <th>Member</th>
+                <th>Points Earned This Week</th>
+                <th>Total Points</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="entry, iterStat : ${weeklyStats.userPoints}">
+                <td th:text="${iterStat.index + 1}"></td>
+                <td th:text="${entry.key}"></td>
+                <td th:text="${entry.value}"></td>
+                <td th:text="${#lists.filter(userStats.user.family.members, m -> (m.firstName + ' ' + m.lastName) == entry.key).get(0).points}"></td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+</body>
+</html>

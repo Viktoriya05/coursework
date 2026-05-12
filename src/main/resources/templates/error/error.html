@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Error - Family Chore Tracker</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body class="error-page">
+<div class="error-container">
+    <h1 th:text="${status}">500</h1>
+    <h2>Something Went Wrong</h2>
+    <p th:text="${error}">An unexpected error occurred.</p>
+    <a href="/dashboard" class="btn btn-primary">Go to Dashboard</a>
+</div>
+</body>
+</html>

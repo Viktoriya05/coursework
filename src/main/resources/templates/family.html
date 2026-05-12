@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      layout:decorate="~{layout}">
+<head>
+    <title>Family - Family Chore Tracker</title>
+</head>
+<body>
+<div layout:fragment="content">
+    <div class="page-header">
+        <h1>Family Management</h1>
+    </div>
+
+    <div th:if="${user.family == null}" class="family-setup">
+        <div class="card">
+            <h3>Create a Family</h3>
+            <form method="post" th:action="@{/family/create}">
+                <div class="form-group">
+                    <input type="text" name="familyName" placeholder="Family Name" required>
+                </div>
+                <button type="submit" class="btn btn-primary">Create Family</button>
+            </form>
+        </div>
+
+        <div class="card">
+            <h3>Join Existing Family</h3>
+            <form method="post" th:action="@{/family/join}">
+                <div class="form-group">
+                    <input type="text" name="inviteCode" placeholder="Invite Code" required>
+                </div>
+                <button type="submit" class="btn btn-secondary">Join Family</button>
+            </form>
+        </div>
+    </div>
+
+    <div th:if="${user.family != null}">
+        <div class="family-info">
+            <div class="card">
+                <h3>🏠 <span th:text="${family.name}">Family Name</span></h3>
+                <p>Invite Code: <strong th:text="${inviteCode}"></strong></p>
+                <p>Share this code with family members to join</p>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>Family Members</h3>
+            <div class="members-list">
+                <div th:each="member : ${members}" class="member-card">
+                    <div class="member-avatar">
+                        <span th:text="${#strings.substring(member.firstName, 0, 1)} + ${#strings.substring(member.lastName, 0, 1)}"></span>
+                    </div>
+                    <div class="member-info">
+                        <h4 th:text="${member.firstName} + ' ' + ${member.lastName}"></h4>
+                        <p>@<span th:text="${member.username}"></span></p>
+                        <span class="member-role" th:classappend="'role-' + ${#strings.toLowerCase(member.role)}" th:text="${member.role}"></span>
+                    </div>
+                    <div class="member-stats">
+                        <span>⭐ <span th:text="${member.points}"></span> points</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>Assign Task to Child</h3>
+            <form method="post" th:action="@{/chores/assign}">
+                <div class="form-group">
+                    <select name="childId" required>
+                        <option value="">Select Child</option>
+                        <option th:each="member : ${members}" th:if="${member.role == 'CHILD'}" th:value="${member.id}" th:text="${member.firstName} + ' ' + ${member.lastName}"></option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <input type="text" name="choreName" placeholder="Task Name" required>
+                </div>
+                <div class="form-group">
+                    <input type="number" name="points" placeholder="Points" value="10">
+                </div>
+                <button type="submit" class="btn btn-primary">Assign Task</button>
+            </form>
+        </div>
+    </div>
+</div>
+</body>
+</html>

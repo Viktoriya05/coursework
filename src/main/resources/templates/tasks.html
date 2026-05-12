@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      layout:decorate="~{layout}">
+<head>
+    <title>My Tasks - Family Chore Tracker</title>
+</head>
+<body>
+<div layout:fragment="content">
+    <div class="page-header">
+        <h1>My Tasks</h1>
+        <a href="/chores/create" class="btn btn-primary">+ New Task</a>
+    </div>
+
+    <div class="tabs">
+        <button class="tab-btn active" onclick="showTab('pending')">Pending</button>
+        <button class="tab-btn" onclick="showTab('completed')">Completed</button>
+        <button class="tab-btn" onclick="showTab('review')">Needs Review</button>
+    </div>
+
+    <div id="pending" class="tab-content active">
+        <div th:each="chore : ${chores}" th:if="${chore.status == 'PENDING'}" class="task-card">
+            <div class="task-card-header">
+                <h3 th:text="${chore.name}">Task Name</h3>
+                <span class="task-points">⭐ <span th:text="${chore.points ?: 0}">0</span> pts</span>
+            </div>
+            <p th:text="${chore.description}">Description</p>
+            <div class="task-meta">
+                <span>📅 Due: <span th:text="${chore.dueDate != null ? #temporals.format(chore.dueDate, 'MMM dd, yyyy') : 'No due date'}"></span></span>
+                <span>🏷️ Category: <span th:text="${chore.category != null ? chore.category.name : 'Uncategorized'}"></span></span>
+            </div>
+            <div class="task-actions">
+                <a th:href="'/timer?choreId=' + ${chore.id}" class="btn btn-success">▶ Start Timer</a>
+                <a th:href="'/chores/' + ${chore.id} + '/complete'" class="btn btn-primary">✓ Mark Complete</a>
+            </div>
+        </div>
+        <div th:if="${chores.stream().filter(c -> c.status == 'PENDING').count() == 0}" class="empty-state">
+            <p>No pending tasks. Good job!</p>
+        </div>
+    </div>
+
+    <div id="completed" class="tab-content">
+        <div th:each="chore : ${chores}" th:if="${chore.status == 'COMPLETED'}" class="task-card completed">
+            <div class="task-card-header">
+                <h3 th:text="${chore.name}">Task Name</h3>
+                <span class="task-status success">✓ Completed</span>
+            </div>
+            <p th:text="${chore.description}">Description</p>
+            <div class="task-meta">
+                <span>✅ Completed: <span th:text="${chore.completedAt != null ? #temporals.format(chore.completedAt, 'MMM dd, yyyy HH:mm') : 'N/A'}"></span></span>
+            </div>
+        </div>
+    </div>
+
+    <div id="review" class="tab-content">
+        <div th:each="chore : ${chores}" th:if="${chore.status == 'NEEDS_REVIEW'}" class="task-card warning">
+            <div class="task-card-header">
+                <h3 th:text="${chore.name}">Task Name</h3>
+                <span class="task-status warning">⏳ Needs Review</span>
+            </div>
+            <p th:text="${chore.description}">Description</p>
+            <div class="task-actions">
+                <button class="btn btn-success" th:onclick="'confirmTask(' + ${chore.id} + ', true)'">✓ Approve</button>
+                <button class="btn btn-danger" th:onclick="'confirmTask(' + ${chore.id} + ', false)'">✗ Reject</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function showTab(tabId) {
+        document.querySelectorAll('.tab-content').forEach(tab => {
+            tab.classList.remove('active');
+        });
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        document.getElementById(tabId).classList.add('active');
+        event.target.classList.add('active');
+    }
+
+    function confirmTask(choreId, approve) {
+        fetch('/api/chores/' + choreId + '/confirm?approve=' + approve, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        }).then(response => {
+            if (response.ok) {
+                location.reload();
+            }
+        });
+    }
+</script>
+</body>
+</html>

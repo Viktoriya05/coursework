@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      layout:decorate="~{layout}">
+<head>
+    <title>Weekly Planning - Family Chore Tracker</title>
+</head>
+<body>
+<div layout:fragment="content">
+    <div class="page-header">
+        <h1>Weekly Planning</h1>
+        <div class="week-nav">
+            <a th:href="@{/planning(weekStart=${weekStart.minusWeeks(1)})}" class="btn btn-secondary">← Previous Week</a>
+            <span class="week-range" th:text="${#temporals.format(weekStart, 'MMM dd')} + ' - ' + ${#temporals.format(weekEnd, 'MMM dd, yyyy')}"></span>
+            <a th:href="@{/planning(weekStart=${weekStart.plusWeeks(1)})}" class="btn btn-secondary">Next Week →</a>
+        </div>
+    </div>
+
+    <div th:if="${summary.hasPlan == false}" class="alert alert-info">
+        <p>No plan for this week. <a href="#" onclick="createPlan()">Create a plan?</a></p>
+    </div>
+
+    <div th:if="${summary.hasPlan != false}">
+        <div class="summary-card">
+            <h3>Week Summary</h3>
+            <div class="summary-stats">
+                <div class="summary-stat">
+                    <span class="stat-value" th:text="${summary.totalChores}">0</span>
+                    <span class="stat-label">Total Tasks</span>
+                </div>
+                <div class="summary-stat">
+                    <span class="stat-value" th:text="${summary.completedChores}">0</span>
+                    <span class="stat-label">Completed</span>
+                </div>
+                <div class="summary-stat">
+                    <span class="stat-value" th:text="${summary.completionRate} + '%'">0%</span>
+                    <span class="stat-label">Completion Rate</span>
+                </div>
+                <div class="summary-stat">
+                    <span class="stat-value" th:text="${summary.totalEstimatedMinutes} + ' min'">0</span>
+                    <span class="stat-label">Estimated Time</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="weekly-calendar">
+            <div th:each="day : ${#numbers.sequence(0, 6)}" class="calendar-day">
+                <div class="day-header">
+                    <span th:text="${#temporals.format(weekStart.plusDays(day), 'EEEE')}"></span>
+                    <span th:text="${#temporals.format(weekStart.plusDays(day), 'MMM dd')}"></span>
+                </div>
+                <div class="day-tasks">
+                    <div th:each="item : ${plan.items}" th:if="${item.scheduledDate == weekStart.plusDays(day)}" class="plan-item" th:classappend="${item.completed} ? 'completed' : ''">
+                        <span th:text="${item.chore.name}"></span>
+                        <span class="item-estimate" th:text="${item.estimatedMinutes} + ' min'"></span>
+                        <input type="checkbox" th:checked="${item.completed}" th:onclick="'markComplete(' + ${item.id} + ')'" />
+                    </div>
+                    <button class="btn-add-task" th:onclick="'addTaskToDay(\'' + ${weekStart.plusDays(day)} + '\')'">+ Add Task</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function createPlan() {
+        fetch('/planning/create', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            body: new URLSearchParams({
+                weekStart: document.querySelector('.week-range').textContent.split(' - ')[0]
+            })
+        }).then(() => location.reload());
+    }
+
+    function markComplete(itemId) {
+        fetch('/planning/item/' + itemId + '/complete', {
+            method: 'POST'
+        }).then(() => location.reload());
+    }
+
+    function addTaskToDay(date) {
+        let choreId = prompt('Enter task ID to add:');
+        if (choreId) {
+            fetch('/planning/add-chore', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                },
+                body: new URLSearchParams({
+                    planId: [[${plan.id}]],
+                    choreId: choreId,
+                    scheduledDate: date
+                })
+            }).then(() => location.reload());
+        }
+    }
+</script>
+</body>
+</html>

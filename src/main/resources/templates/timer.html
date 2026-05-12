@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      layout:decorate="~{layout}">
+<head>
+    <title>Timer - Family Chore Tracker</title>
+</head>
+<body>
+<div layout:fragment="content">
+    <div class="timer-container">
+        <div class="timer-card">
+            <h2 id="choreName" th:text="${choreName}">Task Name</h2>
+
+            <div class="timer-display">
+                <span id="hours">00</span>:<span id="minutes">00</span>:<span id="seconds">00</span>
+            </div>
+
+            <div class="timer-controls">
+                <button id="startBtn" class="btn btn-success btn-lg" onclick="startTimer()">▶ Start</button>
+                <button id="pauseBtn" class="btn btn-warning btn-lg" onclick="pauseTimer()" style="display:none">⏸ Pause</button>
+                <button id="resumeBtn" class="btn btn-primary btn-lg" onclick="resumeTimer()" style="display:none">▶ Resume</button>
+                <button id="stopBtn" class="btn btn-danger btn-lg" onclick="stopTimer()" style="display:none">⏹ Stop</button>
+            </div>
+
+            <div class="timer-info">
+                <p>Task ID: <span id="choreId" th:text="${choreId}"></span></p>
+                <p id="pointsInfo" th:if="${points}">Points: ⭐ <span th:text="${points}"></span></p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let executionId = null;
+    let timerInterval = null;
+    let isRunning = false;
+    let currentSeconds = 0;
+
+    function updateDisplay() {
+        let hours = Math.floor(currentSeconds / 3600);
+        let minutes = Math.floor((currentSeconds % 3600) / 60);
+        let seconds = currentSeconds % 60;
+
+        document.getElementById('hours').textContent = String(hours).padStart(2, '0');
+        document.getElementById('minutes').textContent = String(minutes).padStart(2, '0');
+        document.getElementById('seconds').textContent = String(seconds).padStart(2, '0');
+    }
+
+    function startTimer() {
+        fetch('/api/timer/start', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ choreId: document.getElementById('choreId').textContent })
+        })
+        .then(response => response.json())
+        .then(data => {
+            executionId = data.executionId;
+            isRunning = true;
+            currentSeconds = 0;
+            updateDisplay();
+
+            timerInterval = setInterval(() => {
+                if (isRunning) {
+                    currentSeconds++;
+                    updateDisplay();
+                }
+            }, 1000);
+
+            document.getElementById('startBtn').style.display = 'none';
+            document.getElementById('pauseBtn').style.display = 'inline-block';
+            document.getElementById('stopBtn').style.display = 'inline-block';
+        });
+    }
+
+    function pauseTimer() {
+        fetch('/api/timer/pause', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ executionId: executionId })
+        })
+        .then(response => response.json())
+        .then(data => {
+            isRunning = false;
+            document.getElementById('pauseBtn').style.display = 'none';
+            document.getElementById('resumeBtn').style.display = 'inline-block';
+        });
+    }
+
+    function resumeTimer() {
+        fetch('/api/timer/resume', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ executionId: executionId })
+        })
+        .then(response => response.json())
+        .then(data => {
+            isRunning = true;
+            document.getElementById('resumeBtn').style.display = 'none';
+            document.getElementById('pauseBtn').style.display = 'inline-block';
+        });
+    }
+
+    function stopTimer() {
+        clearInterval(timerInterval);
+
+        fetch('/api/timer/stop', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ executionId: executionId })
+        })
+        .then(response => response.json())
+        .then(data => {
+            alert('Task completed! Duration: ' + data.durationSeconds + ' seconds');
+            window.location.href = '/dashboard';
+        });
+    }
+</script>
+</body>
+</html>
