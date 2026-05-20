@@ -1,31 +1,46 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org"
-      layout:decorate="~{layout}">
+<html xmlns:th="http://www.thymeleaf.org">
 <head>
-    <title>Timer - Family Chore Tracker</title>
+    <meta charset="UTF-8">
+    <title>Timer</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
 </head>
 <body>
-<div layout:fragment="content">
-    <div class="timer-container">
-        <div class="timer-card">
-            <h2 id="choreName" th:text="${choreName}">Task Name</h2>
-
-            <div class="timer-display">
-                <span id="hours">00</span>:<span id="minutes">00</span>:<span id="seconds">00</span>
-            </div>
-
-            <div class="timer-controls">
-                <button id="startBtn" class="btn btn-success btn-lg" onclick="startTimer()">▶ Start</button>
-                <button id="pauseBtn" class="btn btn-warning btn-lg" onclick="pauseTimer()" style="display:none">⏸ Pause</button>
-                <button id="resumeBtn" class="btn btn-primary btn-lg" onclick="resumeTimer()" style="display:none">▶ Resume</button>
-                <button id="stopBtn" class="btn btn-danger btn-lg" onclick="stopTimer()" style="display:none">⏹ Stop</button>
-            </div>
-
-            <div class="timer-info">
-                <p>Task ID: <span id="choreId" th:text="${choreId}"></span></p>
-                <p id="pointsInfo" th:if="${points}">Points: ⭐ <span th:text="${points}"></span></p>
-            </div>
+<nav class="navbar">
+    <div class="nav-container">
+        <a href="/dashboard" class="nav-brand">🏠 Family Chore Tracker</a>
+        <div class="nav-menu">
+            <a href="/dashboard">Dashboard</a>
+            <a href="/planning">Planning</a>
+            <a href="/family">Family</a>
+            <a href="/reports">Reports</a>
+            <a href="/review">Review</a>
+            <form th:action="@{/logout}" method="post">
+                <button type="submit">Logout</button>
+            </form>
         </div>
+    </div>
+</nav>
+
+<div class="timer-container">
+    <div class="timer-card">
+        <h2 id="choreName" th:text="${choreName}" style="margin-bottom: 1rem;">Task Name</h2>
+
+        <div class="timer-display">
+            <span id="hours">00</span>:<span id="minutes">00</span>:<span id="seconds">00</span>
+        </div>
+
+        <div class="timer-controls">
+            <button id="startBtn" class="btn btn-success btn-lg" onclick="startTimer()">▶ Start</button>
+            <button id="pauseBtn" class="btn btn-warning btn-lg" onclick="pauseTimer()" style="display:none">⏸ Pause</button>
+            <button id="resumeBtn" class="btn btn-primary btn-lg" onclick="resumeTimer()" style="display:none">▶ Resume</button>
+            <button id="stopBtn" class="btn btn-danger btn-lg" onclick="stopTimer()" style="display:none">⏹ Stop</button>
+        </div>
+
+        <div th:if="${points}" style="margin-top: 1rem;">
+            <span class="task-points">⭐ This task is worth <span th:text="${points}"></span> points!</span>
+        </div>
+        <input type="hidden" id="choreId" th:value="${choreId}">
     </div>
 </div>
 
@@ -46,12 +61,12 @@
     }
 
     function startTimer() {
+        const choreId = document.getElementById('choreId').value;
+
         fetch('/api/timer/start', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ choreId: document.getElementById('choreId').textContent })
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ choreId: parseInt(choreId) })
         })
         .then(response => response.json())
         .then(data => {
@@ -61,24 +76,23 @@
             updateDisplay();
 
             timerInterval = setInterval(() => {
-                if (isRunning) {
-                    currentSeconds++;
-                    updateDisplay();
-                }
+                if (isRunning) currentSeconds++;
+                updateDisplay();
             }, 1000);
 
             document.getElementById('startBtn').style.display = 'none';
             document.getElementById('pauseBtn').style.display = 'inline-block';
             document.getElementById('stopBtn').style.display = 'inline-block';
+        })
+        .catch(error => {
+            alert('Error starting timer: ' + error);
         });
     }
 
     function pauseTimer() {
         fetch('/api/timer/pause', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ executionId: executionId })
         })
         .then(response => response.json())
@@ -92,9 +106,7 @@
     function resumeTimer() {
         fetch('/api/timer/resume', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ executionId: executionId })
         })
         .then(response => response.json())
@@ -106,18 +118,33 @@
     }
 
     function stopTimer() {
+        if (!executionId) {
+            alert('No active timer to stop');
+            window.location.href = '/dashboard';
+            return;
+        }
+
         clearInterval(timerInterval);
 
         fetch('/api/timer/stop', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ executionId: executionId })
         })
         .then(response => response.json())
         .then(data => {
-            alert('Task completed! Duration: ' + data.durationSeconds + ' seconds');
+            if (data.pointsAwarded && data.pointsAwarded > 0) {
+                alert('✅ Task completed! You earned ' + data.pointsAwarded + ' points!');
+            } else if (data.status === 'completed') {
+                alert('⏳ Task completed! Waiting for parent approval.');
+            } else {
+                alert('Task completed!');
+            }
+            window.location.href = '/dashboard';
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Task completed! Redirecting to dashboard...');
             window.location.href = '/dashboard';
         });
     }

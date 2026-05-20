@@ -11,7 +11,7 @@ import lombok.AllArgsConstructor;
 public class UserDto {
     private Long id;
 
-    @NotBlank(message = "Username is required")
+    @NotBlank(message = "{auth.register.error.username.blank}")
     @Size(min = 3, max = 50, message = "Username must be between 3 and 50 characters")
     private String username;
 

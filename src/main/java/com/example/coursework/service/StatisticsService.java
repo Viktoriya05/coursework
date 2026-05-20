@@ -5,7 +5,7 @@ import com.example.coursework.model.*;
 import com.example.coursework.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-
+import com.example.coursework.exception.*;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
@@ -17,10 +17,11 @@ public class StatisticsService {
     private final TaskExecutionRepository executionRepository;
     private final UserRepository userRepository;
     private final PointTransactionRepository pointTransactionRepository;
+    private final ChoreRepository choreRepository;
 
     public StatisticsDto getWeeklyStatistics(Long userId, LocalDate weekStart) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
 
         LocalDateTime start = weekStart.atStartOfDay();
         LocalDateTime end = weekStart.plusDays(7).atStartOfDay();
@@ -29,11 +30,6 @@ public class StatisticsService {
         dto.setWeekStart(weekStart);
         dto.setWeekEnd(weekStart.plusDays(6));
 
-        Map<String, Integer> userTotalMinutes = new HashMap<>();
-        Map<String, Map<String, Integer>> userCategoryMinutes = new HashMap<>();
-        Map<String, Integer> userPoints = new HashMap<>();
-
-        // If user has a family, get all family members
         List<User> members = new ArrayList<>();
         if (user.getFamily() != null) {
             members = userRepository.findByFamily(user.getFamily());
@@ -44,10 +40,11 @@ public class StatisticsService {
         int familyTotalMinutes = 0;
 
         for (User member : members) {
-            List<TaskExecution> executions = executionRepository.findByUserAndStartTimeBetween(member, start, end);
+            List<TaskExecution> executions = executionRepository.findByUserAndStartTimeBetween(
+                    member.getId(), start, end);
 
             int totalMinutes = 0;
-            Map<String, Integer> categoryMinutes = new HashMap<>();
+            Map<String, Integer> categoryMinutes = new LinkedHashMap<>();
 
             for (TaskExecution execution : executions) {
                 if (execution.getDurationSeconds() != null && execution.getStatus() == ExecutionStatus.COMPLETED) {
@@ -62,46 +59,37 @@ public class StatisticsService {
                 }
             }
 
-            String memberName = member.getFirstName() + " " + member.getLastName();
-            userTotalMinutes.put(memberName, totalMinutes);
-            userCategoryMinutes.put(memberName, categoryMinutes);
+            String memberName = member.getFullName().trim().isEmpty() ? member.getUsername() : member.getFullName();
+            dto.getUserTotalMinutes().put(memberName, totalMinutes);
+            dto.getUserCategoryMinutes().put(memberName, categoryMinutes);
             familyTotalMinutes += totalMinutes;
 
-            // Get points earned this week
-            List<PointTransaction> transactions = pointTransactionRepository.findByUserAndCreatedAtBetween(member, start, end);
-            int pointsEarned = transactions.stream().mapToInt(PointTransaction::getPoints).sum();
-            userPoints.put(memberName, pointsEarned);
+            Integer pointsEarned = pointTransactionRepository.sumPointsByUserAndDateRange(
+                    member.getId(), start, end);
+            dto.getUserPoints().put(memberName, pointsEarned != null ? pointsEarned : 0);
         }
 
-        dto.setUserTotalMinutes(userTotalMinutes);
-        dto.setUserCategoryMinutes(userCategoryMinutes);
         dto.setFamilyTotalMinutes(familyTotalMinutes);
-        dto.setUserPoints(userPoints);
-
         return dto;
     }
 
     public Map<String, Object> getUserStats(Long userId) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
 
-        Map<String, Object> stats = new HashMap<>();
+        Map<String, Object> stats = new LinkedHashMap<>();
 
-        List<Chore> chores = user.getChores();
-        long totalChoresCompleted = chores.stream()
-                .filter(c -> c.getStatus() == ChoreStatus.COMPLETED)
-                .count();
+        Long totalChoresCompleted = choreRepository.countCompletedByUser(userId);
+        Integer totalPointsFromChores = choreRepository.sumPointsByUser(userId);
 
         List<TaskExecution> executions = executionRepository.findByUser(user);
 
-        // Total time spent
         int totalSeconds = executions.stream()
                 .filter(e -> e.getStatus() == ExecutionStatus.COMPLETED && e.getDurationSeconds() != null)
                 .mapToInt(TaskExecution::getDurationSeconds)
                 .sum();
 
-        // Category breakdown
-        Map<String, Integer> categoryTimeMap = new HashMap<>();
+        Map<String, Integer> categoryTimeMap = new LinkedHashMap<>();
         for (TaskExecution ex : executions) {
             if (ex.getStatus() == ExecutionStatus.COMPLETED && ex.getDurationSeconds() != null) {
                 String category = ex.getChore().getCategory() != null
@@ -113,8 +101,9 @@ public class StatisticsService {
         }
 
         stats.put("user", user);
-        stats.put("totalChoresCompleted", totalChoresCompleted);
+        stats.put("totalChoresCompleted", totalChoresCompleted != null ? totalChoresCompleted : 0);
         stats.put("totalPoints", user.getPoints());
+        stats.put("totalPointsFromChores", totalPointsFromChores != null ? totalPointsFromChores : 0);
         stats.put("totalHoursSpent", totalSeconds / 3600);
         stats.put("totalMinutesSpent", totalSeconds / 60);
         stats.put("categoryTimeMap", categoryTimeMap);

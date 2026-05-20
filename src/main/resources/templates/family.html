@@ -1,82 +1,168 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org"
-      layout:decorate="~{layout}">
+<html xmlns:th="http://www.thymeleaf.org">
 <head>
-    <title>Family - Family Chore Tracker</title>
+    <meta charset="UTF-8">
+    <title>Family</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
 </head>
 <body>
-<div layout:fragment="content">
-    <div class="page-header">
-        <h1>Family Management</h1>
-    </div>
-
-    <div th:if="${user.family == null}" class="family-setup">
-        <div class="card">
-            <h3>Create a Family</h3>
-            <form method="post" th:action="@{/family/create}">
-                <div class="form-group">
-                    <input type="text" name="familyName" placeholder="Family Name" required>
-                </div>
-                <button type="submit" class="btn btn-primary">Create Family</button>
-            </form>
-        </div>
-
-        <div class="card">
-            <h3>Join Existing Family</h3>
-            <form method="post" th:action="@{/family/join}">
-                <div class="form-group">
-                    <input type="text" name="inviteCode" placeholder="Invite Code" required>
-                </div>
-                <button type="submit" class="btn btn-secondary">Join Family</button>
+<nav class="navbar">
+    <div class="nav-container">
+        <a href="/dashboard" class="nav-brand">🏠 Family Chore Tracker</a>
+        <div class="nav-menu">
+            <a href="/dashboard">Dashboard</a>
+            <a href="/planning">Planning</a>
+            <a href="/family">Family</a>
+            <a href="/reports">Reports</a>
+            <a href="/review">Review</a>
+            <form th:action="@{/logout}" method="post">
+                <button type="submit">Logout</button>
             </form>
         </div>
     </div>
+</nav>
 
-    <div th:if="${user.family != null}">
-        <div class="family-info">
-            <div class="card">
-                <h3>🏠 <span th:text="${family.name}">Family Name</span></h3>
-                <p>Invite Code: <strong th:text="${inviteCode}"></strong></p>
-                <p>Share this code with family members to join</p>
+<div class="container">
+    <h1 style="margin-bottom: 1.5rem;">Family Management</h1>
+
+    <!-- Нет семьи -->
+    <div th:if="${user.family == null}" class="card">
+        <div class="card-header">
+            <h3>Create or Join a Family</h3>
+        </div>
+        <div class="form-row">
+            <div>
+                <h4>🏠 Create New Family</h4>
+                <form method="post" th:action="@{/family/create}">
+                    <div class="form-group">
+                        <input type="text" name="familyName" placeholder="Family Name" required>
+                    </div>
+                    <button type="submit" class="btn btn-success">Create Family</button>
+                </form>
+            </div>
+            <div>
+                <h4>🔗 Join Existing Family</h4>
+                <form method="post" th:action="@{/family/join}">
+                    <div class="form-group">
+                        <input type="text" name="inviteCode" placeholder="Invite Code" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Join Family</button>
+                </form>
             </div>
         </div>
+    </div>
 
+    <!-- Есть семья -->
+    <div th:if="${user.family != null}">
+        <!-- Информация о семье -->
         <div class="card">
-            <h3>Family Members</h3>
+            <div class="card-header">
+                <h3>🏠 <span th:text="${family.name}"></span></h3>
+            </div>
+            <p><strong>Invite Code:</strong> <code style="background: #EDF2F7; padding: 0.5rem; border-radius: 8px; display: inline-block;" th:text="${inviteCode}"></code></p>
+            <p>Share this code with family members to join</p>
+        </div>
+
+        <!-- Члены семьи -->
+        <div class="card">
+            <div class="card-header">
+                <h3>👨‍👩‍👧 Family Members</h3>
+            </div>
             <div class="members-list">
                 <div th:each="member : ${members}" class="member-card">
                     <div class="member-avatar">
-                        <span th:text="${#strings.substring(member.firstName, 0, 1)} + ${#strings.substring(member.lastName, 0, 1)}"></span>
+                        <span th:text="${#strings.substring(member.firstName, 0, 1)}"></span>
                     </div>
-                    <div class="member-info">
-                        <h4 th:text="${member.firstName} + ' ' + ${member.lastName}"></h4>
-                        <p>@<span th:text="${member.username}"></span></p>
-                        <span class="member-role" th:classappend="'role-' + ${#strings.toLowerCase(member.role)}" th:text="${member.role}"></span>
-                    </div>
-                    <div class="member-stats">
-                        <span>⭐ <span th:text="${member.points}"></span> points</span>
+                    <div class="member-info" style="flex: 1;">
+                        <strong th:text="${member.firstName} + ' ' + ${member.lastName}"></strong>
+                        <span>(@<span th:text="${member.username}"></span>)</span>
+                        <div>
+                            <span class="member-role" th:classappend="'role-' + ${#strings.toLowerCase(member.role)}" th:text="${member.role}"></span>
+                            <span th:if="${member.role == 'CHILD'}" style="margin-left: 0.5rem;">⭐ <span th:text="${member.points}"></span> points</span>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <div class="card">
-            <h3>Assign Task to Child</h3>
-            <form method="post" th:action="@{/chores/assign}">
-                <div class="form-group">
-                    <select name="childId" required>
-                        <option value="">Select Child</option>
-                        <option th:each="member : ${members}" th:if="${member.role == 'CHILD'}" th:value="${member.id}" th:text="${member.firstName} + ' ' + ${member.lastName}"></option>
-                    </select>
+        <!-- Назначение задач (только для родителей) -->
+        <div th:if="${user.role.name() == 'PARENT'}" class="card">
+            <div class="card-header">
+                <h3>📋 Assign Task to Child</h3>
+            </div>
+
+            <div th:if="${children == null or children.size() == 0}" class="alert alert-info">
+                ℹ️ No children in the family yet. Ask someone to join using the invite code above.
+            </div>
+
+            <div th:if="${children != null and children.size() > 0}">
+                <div class="form-row">
+                    <!-- Форма 1: Выбрать существующую задачу -->
+                    <div>
+                        <h4>📌 Assign Existing Task</h4>
+                        <form method="post" th:action="@{/family/assign-task}">
+                            <div class="form-group">
+                                <label>Select Child:</label>
+                                <select name="childId" required>
+                                    <option value="">-- Select Child --</option>
+                                    <option th:each="child : ${children}" th:value="${child.id}"
+                                            th:text="${child.firstName} + ' ' + ${child.lastName}"></option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Select Task:</label>
+                                <select name="choreId" required>
+                                    <option value="">-- Select Task --</option>
+                                    <optgroup label="📋 Default Tasks">
+                                        <option th:each="chore : ${defaultChores}" th:value="${chore.id}"
+                                                th:text="${chore.name} + ' (⭐' + ${chore.points} + ' pts)'"></option>
+                                    </optgroup>
+                                    <optgroup label="📌 My Tasks">
+                                        <option th:each="chore : ${parentChores}" th:value="${chore.id}"
+                                                th:text="${chore.name} + ' (⭐' + ${chore.points} + ' pts)'"></option>
+                                    </optgroup>
+                                </select>
+                            </div>
+                            <button type="submit" class="btn btn-success">Assign Task</button>
+                        </form>
+                    </div>
+
+                    <!-- Форма 2: Создать новую задачу и назначить -->
+                    <div>
+                        <h4>✨ Create & Assign New Task</h4>
+                        <form method="post" th:action="@{/family/create-and-assign}">
+                            <div class="form-group">
+                                <label>Select Child:</label>
+                                <select name="childId" required>
+                                    <option value="">-- Select Child --</option>
+                                    <option th:each="child : ${children}" th:value="${child.id}"
+                                            th:text="${child.firstName} + ' ' + ${child.lastName}"></option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <input type="text" name="name" placeholder="Task Name" required>
+                            </div>
+                            <div class="form-group">
+                                <textarea name="description" rows="2" placeholder="Description (optional)"></textarea>
+                            </div>
+                            <div class="form-group">
+                                <input type="number" name="points" placeholder="Points" value="10" min="1">
+                            </div>
+                            <button type="submit" class="btn btn-primary">Create & Assign</button>
+                        </form>
+                    </div>
                 </div>
-                <div class="form-group">
-                    <input type="text" name="choreName" placeholder="Task Name" required>
-                </div>
-                <div class="form-group">
-                    <input type="number" name="points" placeholder="Points" value="10">
-                </div>
-                <button type="submit" class="btn btn-primary">Assign Task</button>
-            </form>
+            </div>
+        </div>
+
+        <!-- Сообщение для детей -->
+        <div th:if="${user.role.name() == 'CHILD'}" class="card">
+            <div class="card-header">
+                <h3>👶 You are a Child</h3>
+            </div>
+            <p>Ask your parents to assign tasks to you. When you complete a task, it will be sent to your parents for review.</p>
+            <hr style="margin: 1rem 0;">
+            <p><strong>Your points:</strong> ⭐ <span th:text="${user.points}"></span></p>
         </div>
     </div>
 </div>

@@ -5,6 +5,7 @@ import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 import java.time.LocalDate;
 import java.util.Map;
+import java.util.HashMap;
 
 @Data
 @NoArgsConstructor
@@ -12,8 +13,8 @@ import java.util.Map;
 public class StatisticsDto {
     private LocalDate weekStart;
     private LocalDate weekEnd;
-    private Map<String, Integer> userTotalMinutes;
-    private Map<String, Map<String, Integer>> userCategoryMinutes;
-    private Integer familyTotalMinutes;
-    private Map<String, Integer> userPoints;
+    private Map<String, Integer> userTotalMinutes = new HashMap<>();
+    private Map<String, Map<String, Integer>> userCategoryMinutes = new HashMap<>();
+    private Integer familyTotalMinutes = 0;
+    private Map<String, Integer> userPoints = new HashMap<>();
 }

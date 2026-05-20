@@ -5,6 +5,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -23,31 +24,33 @@ public class Chore {
     @Column(nullable = false)
     private String name;
 
+    @Column(length = 1000)
     private String description;
 
     private Integer estimatedMinutes;
     private Integer points;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "category_id")
     private Category category;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
     private User user;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "assigned_by")
     private User assignedBy;
 
     @Enumerated(EnumType.STRING)
     private ChoreStatus status = ChoreStatus.PENDING;
 
-    private LocalDateTime dueDate;
+    private LocalDate dueDate;
+
     private LocalDateTime createdAt;
     private LocalDateTime completedAt;
 
-    @OneToMany(mappedBy = "chore", cascade = CascadeType.ALL)
+    @OneToMany(mappedBy = "chore", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<TaskExecution> executions = new ArrayList<>();
 
     @PrePersist
@@ -55,7 +58,3 @@ public class Chore {
         createdAt = LocalDateTime.now();
     }
 }
-
-// ChoreStatus.java
-//package com.example.coursework.model;
-

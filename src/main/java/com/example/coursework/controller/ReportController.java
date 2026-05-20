@@ -14,6 +14,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
 import java.time.LocalDate;
+import java.time.temporal.TemporalAdjusters;
+import java.time.DayOfWeek;
 import java.util.Map;
 
 @Controller
@@ -28,18 +30,30 @@ public class ReportController {
     public String reportsPage(@RequestParam(required = false) String weekStart,
                               @AuthenticationPrincipal UserDetails userDetails,
                               Model model) {
-        User user = userService.findByUsername(userDetails.getUsername());
+        try {
+            User user = userService.findByUsername(userDetails.getUsername());
 
-        LocalDate startDate = weekStart != null ? LocalDate.parse(weekStart) : LocalDate.now();
-        StatisticsDto weeklyStats = statisticsService.getWeeklyStatistics(user.getId(), startDate);
-        Map<String, Object> userStats = statisticsService.getUserStats(user.getId());
+            LocalDate startDate;
+            if (weekStart != null) {
+                startDate = LocalDate.parse(weekStart);
+            } else {
+                // Неделя начинается с понедельника
+                startDate = LocalDate.now().with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+            }
 
-        model.addAttribute("weeklyStats", weeklyStats);
-        model.addAttribute("userStats", userStats);
-        model.addAttribute("currentWeek", startDate);
-        model.addAttribute("previousWeek", startDate.minusWeeks(1));
-        model.addAttribute("nextWeek", startDate.plusWeeks(1));
+            StatisticsDto weeklyStats = statisticsService.getWeeklyStatistics(user.getId(), startDate);
+            Map<String, Object> userStats = statisticsService.getUserStats(user.getId());
 
-        return "reports";
+            model.addAttribute("weeklyStats", weeklyStats);
+            model.addAttribute("userStats", userStats);
+            model.addAttribute("user", user);
+            model.addAttribute("currentWeek", startDate);
+
+            return "reports";
+        } catch (Exception e) {
+            e.printStackTrace();
+            model.addAttribute("error", e.getMessage());
+            return "dashboard";
+        }
     }
 }

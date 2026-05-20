@@ -1,29 +1,36 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org"
-      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
-      layout:decorate="~{layout}">
+<html xmlns:th="http://www.thymeleaf.org">
 <head>
-    <title>Dashboard - Family Chore Tracker</title>
+    <meta charset="UTF-8">
+    <title>Dashboard</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
 </head>
 <body>
-<div layout:fragment="content">
-    <div class="dashboard-header">
-        <h1>Welcome, <span th:text="${user.firstName}"></span>!</h1>
-        <div class="points-card">
-            <span class="points-icon">⭐</span>
-            <span class="points-value" th:text="${totalPoints}">0</span>
-            <span class="points-label">Total Points</span>
+<nav class="navbar">
+    <div class="nav-container">
+        <a href="/dashboard" class="nav-brand">🏠 Family Chore Tracker</a>
+        <div class="nav-menu">
+            <a href="/dashboard">Dashboard</a>
+            <a href="/planning">Planning</a>
+            <a href="/family">Family</a>
+            <a href="/reports">Reports</a>
+            <a href="/review">Review</a>
+            <form th:action="@{/logout}" method="post">
+                <button type="submit">Logout</button>
+            </form>
         </div>
     </div>
+</nav>
 
+<div class="container">
     <div class="stats-grid">
-        <div class="stat-card">
-            <div class="stat-value" th:text="${pendingCount}">0</div>
-            <div class="stat-label">Pending Tasks</div>
+        <div th:if="${showPoints}" class="stat-card" style="background: linear-gradient(135deg, #A8E6CF, #B5EAD7);">
+            <div class="stat-value" th:text="${totalPoints}">0</div>
+            <div class="stat-label">⭐ My Points</div>
         </div>
         <div class="stat-card">
-            <div class="stat-value" th:text="${#lists.size(user.chores)}">0</div>
-            <div class="stat-label">Total Tasks</div>
+            <div class="stat-value" th:text="${pendingCount}">0</div>
+            <div class="stat-label">📋 Pending Tasks</div>
         </div>
         <div class="stat-card">
             <div class="stat-value" th:text="${user.role}"></div>
@@ -31,51 +38,32 @@
         </div>
     </div>
 
-    <div class="dashboard-grid">
-        <div class="card">
-            <div class="card-header">
-                <h2>📋 Pending Tasks</h2>
-                <a href="/chores" class="btn-link">View All →</a>
-            </div>
-            <div class="card-body">
-                <div th:if="${pendingChores.empty}" class="empty-state">
-                    <p>No pending tasks. Great job!</p>
-                </div>
-                <div th:each="chore : ${pendingChores}" class="task-item">
-                    <div class="task-info">
-                        <h4 th:text="${chore.name}">Task Name</h4>
-                        <p th:text="${chore.description}">Description</p>
-                        <span class="task-points">⭐ <span th:text="${chore.points ?: 0}">0</span> points</span>
-                    </div>
-                    <div class="task-actions">
-                        <a th:href="'/timer?choreId=' + ${chore.id}" class="btn btn-success btn-sm">Start Timer</a>
-                    </div>
-                </div>
-            </div>
+    <div class="card">
+        <div class="card-header">
+            <h3>📋 My Tasks</h3>
         </div>
-
-        <div class="card">
-            <div class="card-header">
-                <h2>✅ Recent Completed</h2>
-                <a href="/chores" class="btn-link">View All →</a>
+        <div th:each="chore : ${pendingChores}" class="task-item">
+            <div class="task-info">
+                <strong th:text="${chore.name}"></strong>
+                <span class="task-points">⭐ <span th:text="${chore.points}"></span> pts</span>
+                <p th:text="${chore.description}"></p>
             </div>
-            <div class="card-body">
-                <div th:each="chore : ${completedChores}" class="task-item">
-                    <div class="task-info">
-                        <h4 th:text="${chore.name}">Task Name</h4>
-                        <span class="task-status" th:classappend="${chore.status == 'NEEDS_REVIEW'} ? 'status-warning' : 'status-success'">
-                            <span th:text="${chore.status}"></span>
-                        </span>
-                    </div>
-                </div>
-            </div>
+            <a th:href="'/timer?choreId=' + ${chore.id}" class="btn btn-success">▶ Start Timer</a>
+        </div>
+        <div th:if="${pendingChores.empty}" class="empty-state">
+            🎉 No pending tasks. Great job!
         </div>
     </div>
 
-    <div class="quick-actions">
-        <a href="/chores/create" class="btn btn-primary">+ Create New Task</a>
-        <a href="/planning" class="btn btn-secondary">📅 View Weekly Plan</a>
-        <a href="/reports" class="btn btn-info">📊 View Reports</a>
+    <div class="card">
+        <div class="card-header">
+            <h3>Quick Actions</h3>
+        </div>
+        <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+            <a href="/chores/create" class="btn btn-primary">+ Create Task</a>
+            <a href="/planning" class="btn btn-secondary">📅 Weekly Plan</a>
+            <a href="/family" class="btn btn-secondary">👨‍👩‍👧 Family</a>
+        </div>
     </div>
 </div>
 </body>

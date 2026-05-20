@@ -16,6 +16,7 @@ public class TimerService {
     private final TaskExecutionRepository executionRepository;
     private final ChoreRepository choreRepository;
     private final UserService userService;
+    private final PlanningService planningService;
 
     @Transactional
     public TimerResponse startTimer(Long userId, Long choreId) {
@@ -118,7 +119,21 @@ public class TimerService {
         execution.setStatus(ExecutionStatus.COMPLETED);
 
         Chore chore = execution.getChore();
-        chore.setStatus(ChoreStatus.NEEDS_REVIEW);
+
+        // Для родителя - сразу начисляем очки и завершаем задачу
+        if (chore.getUser().getRole() == UserRole.PARENT) {
+            chore.setStatus(ChoreStatus.COMPLETED);
+            // Начисляем очки
+            if (chore.getPoints() != null && chore.getPoints() > 0) {
+                userService.addPoints(chore.getUser().getId(), chore.getPoints());
+            }
+            // Синхронизируем с планом
+            planningService.syncTaskCompletion(chore.getId(), true);
+        } else {
+            // Для ребенка - отправляем на проверку родителю
+            chore.setStatus(ChoreStatus.NEEDS_REVIEW);
+        }
+
         chore.setCompletedAt(endTime);
         choreRepository.save(chore);
 
@@ -128,6 +143,7 @@ public class TimerService {
         response.setExecutionId(execution.getId());
         response.setDurationSeconds(execution.getDurationSeconds());
         response.setStatus("completed");
+        response.setPointsAwarded(chore.getPoints());
 
         return response;
     }
@@ -139,12 +155,17 @@ public class TimerService {
 
         if (approve) {
             Chore chore = execution.getChore();
+            // Меняем статус с NEEDS_REVIEW на COMPLETED
             chore.setStatus(ChoreStatus.COMPLETED);
             choreRepository.save(chore);
 
+            // Начисляем очки
             if (chore.getPoints() != null && chore.getPoints() > 0) {
                 userService.addPoints(chore.getUser().getId(), chore.getPoints());
             }
+
+            // Синхронизируем с планом
+            planningService.syncTaskCompletion(chore.getId(), true);
 
             TimerResponse response = new TimerResponse();
             response.setStatus("approved");
@@ -152,13 +173,21 @@ public class TimerService {
             return response;
         } else {
             Chore chore = execution.getChore();
+            // Возвращаем статус в PENDING (задача не выполнена)
             chore.setStatus(ChoreStatus.PENDING);
             chore.setCompletedAt(null);
             choreRepository.save(chore);
+
+            // Синхронизируем с планом
+            planningService.syncTaskCompletion(chore.getId(), false);
 
             TimerResponse response = new TimerResponse();
             response.setStatus("rejected");
             return response;
         }
+    }
+
+    public TaskExecution getActiveExecution(Long userId) {
+        return executionRepository.findActiveExecution(userId);
     }
 }

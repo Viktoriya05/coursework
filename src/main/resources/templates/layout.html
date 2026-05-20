@@ -4,37 +4,36 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title th:text="${title} ?: 'Family Chore Tracker'">Family Chore Tracker</title>
+    <title th:text="${pageTitle} ?: 'Family Chore Tracker'">Family Chore Tracker</title>
     <link rel="stylesheet" th:href="@{/css/style.css}">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <th:block th:replace="${headContent} ?: _"></th:block>
 </head>
 <body>
-<nav class="navbar">
-    <div class="nav-container">
-        <a href="/dashboard" class="nav-brand">🏠 Family Chore Tracker</a>
-        <div class="nav-menu">
-            <a href="/dashboard" class="nav-link">Dashboard</a>
-            <a href="/chores" class="nav-link">My Tasks</a>
-            <a href="/planning" class="nav-link">Weekly Plan</a>
-            <a href="/family" class="nav-link">Family</a>
-            <a href="/reports" class="nav-link">Reports</a>
-            <a href="/logout" class="nav-link logout">Logout</a>
+    <nav class="navbar" sec:authorize="isAuthenticated()">
+        <div class="nav-container">
+            <a href="/dashboard" class="nav-brand">🏠 Family Chore Tracker</a>
+            <div class="nav-menu">
+                <a href="/dashboard">Dashboard</a>
+                <a href="/chores">My Tasks</a>
+                <a href="/planning">Planning</a>
+                <a href="/family">Family</a>
+                <a href="/reports">Reports</a>
+                <form th:action="@{/logout}" method="post" style="display: inline;">
+                    <button type="submit" style="background: none; border: none; color: #f56565; cursor: pointer; font-size: 16px;">Logout</button>
+                </form>
+            </div>
         </div>
-        <div class="user-info">
-            <span th:text="${#authentication.name}"></span>
-        </div>
+    </nav>
+
+    <div class="container">
+        <th:block th:replace="${content}"></th:block>
     </div>
-</nav>
 
-<main class="container">
-    <div th:if="${message}" class="alert alert-success" th:text="${message}"></div>
-    <div th:if="${error}" class="alert alert-danger" th:text="${error}"></div>
+    <footer class="footer" sec:authorize="isAuthenticated()">
+        <p>Family Chore Tracker &copy; 2024</p>
+    </footer>
 
-    <div th:replace="${content} :: content"></div>
-</main>
-
-<footer class="footer">
-    <p>&copy; 2024 Family Chore Tracker. All rights reserved.</p>
-</footer>
+    <th:block th:replace="${scripts} ?: _"></th:block>
 </body>
 </html>

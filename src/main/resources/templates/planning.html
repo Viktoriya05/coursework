@@ -1,101 +1,104 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org"
-      layout:decorate="~{layout}">
+<html xmlns:th="http://www.thymeleaf.org">
 <head>
-    <title>Weekly Planning - Family Chore Tracker</title>
+    <meta charset="UTF-8">
+    <title>Weekly Planning</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
 </head>
 <body>
-<div layout:fragment="content">
-    <div class="page-header">
-        <h1>Weekly Planning</h1>
-        <div class="week-nav">
-            <a th:href="@{/planning(weekStart=${weekStart.minusWeeks(1)})}" class="btn btn-secondary">← Previous Week</a>
-            <span class="week-range" th:text="${#temporals.format(weekStart, 'MMM dd')} + ' - ' + ${#temporals.format(weekEnd, 'MMM dd, yyyy')}"></span>
-            <a th:href="@{/planning(weekStart=${weekStart.plusWeeks(1)})}" class="btn btn-secondary">Next Week →</a>
+<nav class="navbar">
+    <div class="nav-container">
+        <a href="/dashboard" class="nav-brand">🏠 Family Chore Tracker</a>
+        <div class="nav-menu">
+            <a href="/dashboard">Dashboard</a>
+            <a href="/planning">Planning</a>
+            <a href="/family">Family</a>
+            <a href="/reports">Reports</a>
+            <a href="/review">Review</a>
+            <form th:action="@{/logout}" method="post">
+                <button type="submit">Logout</button>
+            </form>
+        </div>
+    </div>
+</nav>
+
+<div class="container">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+        <a th:href="@{/planning(weekStart=${weekStart.minusWeeks(1)})}" class="btn btn-secondary">← Previous Week</a>
+        <h1 th:text="${weekStart} + ' - ' + ${weekEnd}"></h1>
+        <a th:href="@{/planning(weekStart=${weekStart.plusWeeks(1)})}" class="btn btn-secondary">Next Week →</a>
+    </div>
+
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-value" th:text="${summary.totalChores}">0</div>
+            <div class="stat-label">Total Tasks</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value" th:text="${summary.completedChores}">0</div>
+            <div class="stat-label">Completed</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value" th:text="${summary.completionRate} + '%'">0%</div>
+            <div class="stat-label">Completion Rate</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value" th:text="${summary.totalEstimatedMinutes} + ' min'">0</div>
+            <div class="stat-label">Estimated Time</div>
         </div>
     </div>
 
-    <div th:if="${summary.hasPlan == false}" class="alert alert-info">
-        <p>No plan for this week. <a href="#" onclick="createPlan()">Create a plan?</a></p>
+    <div class="card" th:if="${plan == null}">
+        <p>No plan for this week.</p>
+        <form method="post" th:action="@{/planning/create}">
+            <button type="submit" class="btn btn-success">Create Weekly Plan</button>
+        </form>
     </div>
 
-    <div th:if="${summary.hasPlan != false}">
-        <div class="summary-card">
-            <h3>Week Summary</h3>
-            <div class="summary-stats">
-                <div class="summary-stat">
-                    <span class="stat-value" th:text="${summary.totalChores}">0</span>
-                    <span class="stat-label">Total Tasks</span>
-                </div>
-                <div class="summary-stat">
-                    <span class="stat-value" th:text="${summary.completedChores}">0</span>
-                    <span class="stat-label">Completed</span>
-                </div>
-                <div class="summary-stat">
-                    <span class="stat-value" th:text="${summary.completionRate} + '%'">0%</span>
-                    <span class="stat-label">Completion Rate</span>
-                </div>
-                <div class="summary-stat">
-                    <span class="stat-value" th:text="${summary.totalEstimatedMinutes} + ' min'">0</span>
-                    <span class="stat-label">Estimated Time</span>
-                </div>
-            </div>
+    <div class="card" th:if="${plan != null}">
+        <div class="card-header">
+            <h3>📅 Weekly Plan</h3>
         </div>
 
-        <div class="weekly-calendar">
+        <div style="margin-bottom: 1.5rem;">
+            <h4>➕ Add Task to Plan</h4>
+            <form method="post" th:action="@{/planning/add-chore}" class="form-row" style="align-items: flex-end;">
+                <input type="hidden" name="planId" th:value="${plan.id}">
+                <div class="form-group" style="flex: 2;">
+                    <select name="choreId" required>
+                        <option value="">Select Task</option>
+                        <option th:each="chore : ${userChores}" th:value="${chore.id}"
+                                th:text="${chore.name} + ' (⭐' + ${chore.points} + ' pts)'"></option>
+                    </select>
+                </div>
+                <div class="form-group" style="flex: 1;">
+                    <input type="date" name="scheduledDate" required>
+                </div>
+                <div>
+                    <button type="submit" class="btn btn-success">Add to Plan</button>
+                </div>
+            </form>
+        </div>
+
+        <div class="week-calendar">
             <div th:each="day : ${#numbers.sequence(0, 6)}" class="calendar-day">
                 <div class="day-header">
-                    <span th:text="${#temporals.format(weekStart.plusDays(day), 'EEEE')}"></span>
-                    <span th:text="${#temporals.format(weekStart.plusDays(day), 'MMM dd')}"></span>
+                    <span th:text="${#temporals.format(weekStart.plusDays(day), 'EEEE')}"></span><br>
+                    <small th:text="${#temporals.format(weekStart.plusDays(day), 'MMM dd')}"></small>
                 </div>
-                <div class="day-tasks">
-                    <div th:each="item : ${plan.items}" th:if="${item.scheduledDate == weekStart.plusDays(day)}" class="plan-item" th:classappend="${item.completed} ? 'completed' : ''">
-                        <span th:text="${item.chore.name}"></span>
-                        <span class="item-estimate" th:text="${item.estimatedMinutes} + ' min'"></span>
-                        <input type="checkbox" th:checked="${item.completed}" th:onclick="'markComplete(' + ${item.id} + ')'" />
+                <div th:each="item : ${plan.items}" th:if="${item.scheduledDate == weekStart.plusDays(day)}" class="day-task" th:classappend="${item.completed} ? 'completed' : ''">
+                    <strong th:text="${item.chore.name}"></strong>
+                    <div><small>⭐ <span th:text="${item.chore.points}"></span> pts | ⏱️ <span th:text="${item.estimatedMinutes}"></span> min</small></div>
+                    <div style="margin-top: 0.5rem;">
+                        <a th:href="'/timer?choreId=' + ${item.chore.id}" class="btn btn-success btn-sm" th:unless="${item.completed}">▶ Start</a>
+                        <form method="post" th:action="@{'/planning/item/' + ${item.id} + '/remove'}" style="display: inline;">
+                            <button type="submit" class="btn btn-danger btn-sm">✗ Remove</button>
+                        </form>
                     </div>
-                    <button class="btn-add-task" th:onclick="'addTaskToDay(\'' + ${weekStart.plusDays(day)} + '\')'">+ Add Task</button>
                 </div>
             </div>
         </div>
     </div>
 </div>
-
-<script>
-    function createPlan() {
-        fetch('/planning/create', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded'
-            },
-            body: new URLSearchParams({
-                weekStart: document.querySelector('.week-range').textContent.split(' - ')[0]
-            })
-        }).then(() => location.reload());
-    }
-
-    function markComplete(itemId) {
-        fetch('/planning/item/' + itemId + '/complete', {
-            method: 'POST'
-        }).then(() => location.reload());
-    }
-
-    function addTaskToDay(date) {
-        let choreId = prompt('Enter task ID to add:');
-        if (choreId) {
-            fetch('/planning/add-chore', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded'
-                },
-                body: new URLSearchParams({
-                    planId: [[${plan.id}]],
-                    choreId: choreId,
-                    scheduledDate: date
-                })
-            }).then(() => location.reload());
-        }
-    }
-</script>
 </body>
 </html>

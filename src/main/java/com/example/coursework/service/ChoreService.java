@@ -1,10 +1,16 @@
 package com.example.coursework.service;
 
+import com.example.coursework.exception.BusinessLogicException;
+import com.example.coursework.exception.ResourceNotFoundException;
 import com.example.coursework.model.*;
 import com.example.coursework.repository.*;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -15,12 +21,13 @@ public class ChoreService {
     private final ChoreRepository choreRepository;
     private final UserRepository userRepository;
     private final CategoryRepository categoryRepository;
+    private final TaskExecutionRepository executionRepository;
 
     @Transactional
-    public Chore createChore(String name, String description, Integer points, Long categoryId,
-                             Long userId, Long assignedById, LocalDateTime dueDate) {
+    public Chore createChore(String name, String description, Integer points, 
+                             Long categoryId, Long userId, Long assignedById, LocalDate dueDate) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
 
         Chore chore = new Chore();
         chore.setName(name);
@@ -32,27 +39,35 @@ public class ChoreService {
 
         if (categoryId != null) {
             Category category = categoryRepository.findById(categoryId)
-                    .orElseThrow(() -> new RuntimeException("Category not found"));
+                    .orElseThrow(() -> new ResourceNotFoundException("Category", "id", categoryId));
             chore.setCategory(category);
         }
 
         if (assignedById != null) {
             User assignedBy = userRepository.findById(assignedById)
-                    .orElseThrow(() -> new RuntimeException("Assigned by user not found"));
+                    .orElseThrow(() -> new ResourceNotFoundException("User", "id", assignedById));
             chore.setAssignedBy(assignedBy);
         }
 
         return choreRepository.save(chore);
     }
 
+    public List<Chore> getDefaultChores() {
+        return choreRepository.findByUserIsNull();
+    }
+
     @Transactional
     public Chore assignChoreToChild(Long choreId, Long childId, Long parentId) {
         Chore chore = choreRepository.findById(choreId)
-                .orElseThrow(() -> new RuntimeException("Chore not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Chore", "id", choreId));
         User child = userRepository.findById(childId)
-                .orElseThrow(() -> new RuntimeException("Child not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("User", "id", childId));
         User parent = userRepository.findById(parentId)
-                .orElseThrow(() -> new RuntimeException("Parent not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("User", "id", parentId));
+
+        if (child.getRole() != UserRole.CHILD) {
+            throw new BusinessLogicException("Selected user is not a child");
+        }
 
         chore.setUser(child);
         chore.setAssignedBy(parent);
@@ -63,20 +78,44 @@ public class ChoreService {
 
     public List<Chore> getUserChores(Long userId) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
         return choreRepository.findByUser(user);
+    }
+
+    public Page<Chore> getUserChoresPaged(Long userId, Pageable pageable) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
+        return choreRepository.findByUser(user, pageable);
     }
 
     public List<Chore> getPendingChores(Long userId) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
         return choreRepository.findByUserAndStatus(user, ChoreStatus.PENDING);
     }
+    public List<Chore> getChoresForReview(Long parentId) {
+        User parent = userRepository.findById(parentId)
+                .orElseThrow(() -> new RuntimeException("Parent not found"));
 
+        // Ищем задачи, которые:
+        // 1. Назначены этим родителем (assignedBy = parent)
+        // 2. Имеют статус NEEDS_REVIEW
+        List<Chore> chores = choreRepository.findByAssignedByAndStatus(parent, ChoreStatus.NEEDS_REVIEW);
+
+        System.out.println("Found " + chores.size() + " chores for review for parent " + parent.getUsername());
+        for (Chore c : chores) {
+            System.out.println("  - " + c.getName() + " (status: " + c.getStatus() + ")");
+        }
+
+        return chores;
+    }
     @Transactional
     public Chore updateChoreStatus(Long choreId, ChoreStatus status) {
         Chore chore = choreRepository.findById(choreId)
                 .orElseThrow(() -> new RuntimeException("Chore not found"));
+
+        System.out.println("Updating chore " + chore.getId() + " from " + chore.getStatus() + " to " + status);
+
         chore.setStatus(status);
 
         if (status == ChoreStatus.COMPLETED) {
@@ -89,19 +128,21 @@ public class ChoreService {
     @Transactional
     public void requestReview(Long choreId) {
         Chore chore = choreRepository.findById(choreId)
-                .orElseThrow(() -> new RuntimeException("Chore not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Chore", "id", choreId));
         chore.setStatus(ChoreStatus.NEEDS_REVIEW);
         choreRepository.save(chore);
     }
 
-    public List<Chore> getChoresForReview(Long parentId) {
-        User parent = userRepository.findById(parentId)
-                .orElseThrow(() -> new RuntimeException("Parent not found"));
-        return choreRepository.findByAssignedBy(parent);
-    }
-
     public Chore findById(Long id) {
         return choreRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Chore not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Chore", "id", id));
+    }
+
+    public Double getAverageExecutionTime(Long choreId) {
+        return choreRepository.getAverageExecutionTime(choreId);
+    }
+
+    public List<Chore> getOverdueTasks(Long userId) {
+        return choreRepository.findOverdueTasks(userId, ChoreStatus.PENDING);
     }
 }

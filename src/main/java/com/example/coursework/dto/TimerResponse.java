@@ -16,4 +16,5 @@ public class TimerResponse {
     private String status;
     private String choreName;
     private Integer pointsAwarded;
+    private String message;
 }
