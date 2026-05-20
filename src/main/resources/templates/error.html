@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Error - Family Chore Tracker</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="error-page">
+<div class="error-container">
+    <h1 th:text="${status} ?: 'Error'">Error</h1>
+    <h2 th:text="${error} ?: 'Something went wrong'">Something went wrong</h2>
+    <p th:text="${message} ?: 'Please try again later'">Please try again later</p>
+    <a href="/dashboard" class="btn btn-primary" style="margin-top: 2rem;">Go to Dashboard</a>
+</div>
+</body>
+</html>

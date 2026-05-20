@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Review Tasks</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+<nav class="navbar">
+    <div class="nav-container">
+        <a href="/dashboard" class="nav-brand">🏠 Family Chore Tracker</a>
+        <div class="nav-menu">
+            <a href="/dashboard">Dashboard</a>
+            <a href="/planning">Planning</a>
+            <a href="/family">Family</a>
+            <a href="/reports">Reports</a>
+            <a href="/review">Review</a>
+            <form th:action="@{/logout}" method="post">
+                <button type="submit">Logout</button>
+            </form>
+        </div>
+    </div>
+</nav>
+
+<div class="container">
+    <h1 style="margin-bottom: 1.5rem;">Tasks Pending Review</h1>
+
+    <div class="card">
+        <div th:each="chore : ${pendingReview}" class="task-item">
+            <div class="task-info" style="flex: 1;">
+                <strong th:text="${chore.name}"></strong>
+                <span class="task-points">⭐ <span th:text="${chore.points}"></span> pts</span>
+                <p th:text="${chore.description}"></p>
+                <small>Completed by: <span th:text="${chore.user.firstName} + ' ' + ${chore.user.lastName}"></span></small><br>
+                <small>Completed at: <span th:text="${chore.completedAt}"></span></small>
+            </div>
+            <div style="display: flex; gap: 0.5rem;">
+                <form method="post" th:action="@{'/review/' + ${chore.id} + '/approve'}" style="display: inline;">
+                    <button type="submit" class="btn btn-success">✓ Approve</button>
+                </form>
+                <form method="post" th:action="@{'/review/' + ${chore.id} + '/reject'}" style="display: inline;">
+                    <button type="submit" class="btn btn-danger">✗ Reject</button>
+                </form>
+            </div>
+        </div>
+        <div th:if="${pendingReview == null or pendingReview.empty}" class="empty-state">
+            🎉 No tasks pending review. Great job, parents!
+        </div>
+    </div>
+</div>
+</body>
+</html>

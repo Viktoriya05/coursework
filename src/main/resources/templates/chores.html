@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Tasks - Family Chore Tracker</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+<nav class="navbar">
+    <div class="nav-container">
+        <a href="/dashboard" class="nav-brand">🏠 Family Chore Tracker</a>
+        <div class="nav-menu">
+            <a href="/dashboard">Dashboard</a>
+            <a href="/chores">My Tasks</a>
+            <a href="/planning">Planning</a>
+            <a href="/family">Family</a>
+            <a href="/reports">Reports</a>
+            <form th:action="@{/logout}" method="post" style="display: inline;">
+                <button type="submit" style="background: none; border: none; color: #f56565; cursor: pointer; font-size: 16px;">Logout</button>
+            </form>
+        </div>
+    </div>
+</nav>
+
+<div class="container">
+    <div class="page-header">
+        <h1>My Tasks</h1>
+        <a href="/chores/create" class="btn btn-primary">+ Create New Task</a>
+    </div>
+
+    <!-- Default/Available Tasks -->
+    <div class="card" th:if="${!defaultChores.empty}">
+        <div class="card-header">
+            <h3>📋 Available Tasks</h3>
+        </div>
+        <div th:each="chore : ${defaultChores}" class="task-item">
+            <div class="task-info">
+                <h4 th:text="${chore.name}"></h4>
+                <p th:text="${chore.description}"></p>
+                <span class="task-points">⭐ <span th:text="${chore.points} ?: 0"></span> pts</span>
+                <span th:if="${chore.category != null}" 
+                      th:text="${chore.category.icon} + ' ' + ${chore.category.name}"
+                      style="margin-left: 1rem; font-size: 0.85rem; color: var(--gray);"></span>
+            </div>
+            <form method="post" th:action="@{/chores/assign-default/{id}(id=${chore.id})}" style="display: inline;">
+                <button type="submit" class="btn btn-primary btn-sm">Take Task</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- My Active Tasks -->
+    <div class="card">
+        <div class="card-header">
+            <h3>📝 My Active Tasks</h3>
+            <span th:if="${userChores.empty}" style="color: var(--gray);">No active tasks</span>
+        </div>
+        <div th:each="chore : ${userChores}" class="task-item">
+            <div class="task-info">
+                <h4 th:text="${chore.name}"></h4>
+                <p th:text="${chore.description}"></p>
+                <div style="margin-top: 0.5rem;">
+                    <span class="task-status" th:classappend="'status-' + ${chore.status}" 
+                          th:text="${chore.status}"></span>
+                    <span class="task-points" style="margin-left: 0.75rem;">
+                        ⭐ <span th:text="${chore.points} ?: 0"></span> pts
+                    </span>
+                    <span th:if="${chore.dueDate != null}" style="margin-left: 0.75rem; font-size: 0.85rem; color: var(--gray);">
+                        📅 <span th:text="${chore.dueDate}"></span>
+                    </span>
+                </div>
+            </div>
+            <div class="task-actions">
+                <a th:href="@{/timer(choreId=${chore.id})}" 
+                   th:if="${chore.status.name() == 'PENDING' or chore.status.name() == 'IN_PROGRESS'}"
+                   class="btn btn-success btn-sm">▶ Start Timer</a>
+
+                <form method="post" th:action="@{/chores/{id}/request-review(id=${chore.id})}" 
+                      style="display: inline;"
+                      th:if="${chore.status.name() == 'PENDING' or chore.status.name() == 'IN_PROGRESS'}">
+                    <button type="submit" class="btn btn-warning btn-sm">Submit for Review</button>
+                </form>
+
+                <span th:if="${chore.status.name() == 'NEEDS_REVIEW'}" 
+                      class="task-status status-NEEDS_REVIEW">Waiting for approval</span>
+
+                <span th:if="${chore.status.name() == 'COMPLETED'}" 
+                      class="task-status status-COMPLETED">✓ Completed</span>
+            </div>
+        </div>
+        <div th:if="${userChores.empty}" class="empty-state">
+            <div class="empty-state-icon">📝</div>
+            <p>No tasks yet. Create one or take from available tasks!</p>
+        </div>
+    </div>
+
+    <!-- Parent Actions -->
+    <div class="card" sec:authorize="hasRole('PARENT')">
+        <div class="card-header">
+            <h3>👨‍👩‍👧‍👦 Parent Actions</h3>
+        </div>
+        <div class="quick-actions">
+            <a href="/chores/assign" class="btn btn-primary">Assign Task to Child</a>
+            <a href="/chores/review" class="btn btn-warning">Review Completed Tasks</a>
+        </div>
+    </div>
+</div>
+
+<footer class="footer">
+    <p>Family Chore Tracker &copy; 2024</p>
+</footer>
+</body>
+</html>
