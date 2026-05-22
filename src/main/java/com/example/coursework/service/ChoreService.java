@@ -97,17 +97,40 @@ public class ChoreService {
         User parent = userRepository.findById(parentId)
                 .orElseThrow(() -> new RuntimeException("Parent not found"));
 
-        // Ищем задачи, которые:
-        // 1. Назначены этим родителем (assignedBy = parent)
-        // 2. Имеют статус NEEDS_REVIEW
-        List<Chore> chores = choreRepository.findByAssignedByAndStatus(parent, ChoreStatus.NEEDS_REVIEW);
-
-        System.out.println("Found " + chores.size() + " chores for review for parent " + parent.getUsername());
-        for (Chore c : chores) {
-            System.out.println("  - " + c.getName() + " (status: " + c.getStatus() + ")");
+        // Если у родителя есть семья - ищем ВСЕ задачи детей в этой семье на проверку
+        if (parent.getFamily() != null) {
+            return choreRepository.findPendingReviewByFamily(parent.getFamily().getId());
         }
 
-        return chores;
+        // Fallback: ищем только задачи, назначенные этим родителем
+        return choreRepository.findByAssignedByAndStatus(parent, ChoreStatus.NEEDS_REVIEW);
+    }
+    @Transactional
+    public Chore takeDefaultChore(Long choreId, Long childId) {
+        Chore defaultChore = choreRepository.findById(choreId)
+                .orElseThrow(() -> new ResourceNotFoundException("Chore", "id", choreId));
+
+        User child = userRepository.findById(childId)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "id", childId));
+
+        if (child.getRole() != UserRole.CHILD) {
+            throw new BusinessLogicException("Only children can take tasks");
+        }
+
+        // Создаем копию задачи для ребенка
+        Chore childChore = new Chore();
+        childChore.setName(defaultChore.getName());
+        childChore.setDescription(defaultChore.getDescription());
+        childChore.setPoints(defaultChore.getPoints());
+        childChore.setCategory(defaultChore.getCategory());
+        childChore.setUser(child);
+        childChore.setStatus(ChoreStatus.PENDING);
+        childChore.setDueDate(LocalDate.now().plusDays(7));
+
+        // Важно: НЕ устанавливаем assignedBy, чтобы показать, что ребенок взял задачу сам
+        // childChore.setAssignedBy(null); - это и так null
+
+        return choreRepository.save(childChore);
     }
     @Transactional
     public Chore updateChoreStatus(Long choreId, ChoreStatus status) {

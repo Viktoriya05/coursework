@@ -8,7 +8,9 @@ import com.example.coursework.service.ChoreService;
 import com.example.coursework.service.UserService;
 import com.example.coursework.service.TimerService;
 import com.example.coursework.converter.ChoreConverter;
+import com.example.coursework.repository.TaskExecutionRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -26,6 +28,7 @@ public class ChoreApiController {
     private final UserService userService;
     private final TimerService timerService;
     private final ChoreConverter choreConverter;
+    private final TaskExecutionRepository taskExecutionRepository;
 
     @GetMapping
     public ResponseEntity<ApiResponse<List<ChoreDto>>> getMyChores(
@@ -62,12 +65,14 @@ public class ChoreApiController {
                                                          @RequestParam boolean approve,
                                                          @AuthenticationPrincipal UserDetails userDetails) {
         User parent = userService.findByUsername(userDetails.getUsername());
-        // Находим execution для этого chore (последний активный)
-        Chore chore = choreService.findById(choreId);
-        if (chore.getExecutions() != null && !chore.getExecutions().isEmpty()) {
-            Long executionId = chore.getExecutions().get(chore.getExecutions().size() - 1).getId();
+
+        // Находим последнюю execution для этого chore
+        var executions = taskExecutionRepository.findTopByChoreIdOrderByCreatedAtDesc(choreId, PageRequest.of(0, 1));
+        if (!executions.isEmpty()) {
+            Long executionId = executions.get(0).getId();
             timerService.confirmAndAwardPoints(executionId, parent.getId(), approve);
         }
+
         return ResponseEntity.ok(ApiResponse.success("Task " + (approve ? "approved" : "rejected"), null));
     }
 }

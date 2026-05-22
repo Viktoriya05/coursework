@@ -33,6 +33,7 @@ public class DashboardController {
         model.addAttribute("pendingChores", pendingChores);
         model.addAttribute("pendingCount", pendingChores.size());
 
+        // УБРАНО: отображение роли на дашборде
         // Очки показываем только для детей
         if ("CHILD".equals(user.getRole().name())) {
             model.addAttribute("showPoints", true);

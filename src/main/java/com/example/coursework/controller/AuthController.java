@@ -59,13 +59,14 @@ public class AuthController {
         }
 
         try {
+            // ИЗМЕНЕНО: теперь при регистрации всем дается роль PARENT
             userService.register(
                     userDto.getUsername(),
                     userDto.getEmail(),
                     userDto.getPassword(),
                     userDto.getFirstName(),
                     userDto.getLastName(),
-                    "CHILD"
+                    "PARENT"  // ← ИЗМЕНЕНО с "CHILD" на "PARENT"
             );
             return "redirect:/login?registered";
         } catch (RuntimeException e) {

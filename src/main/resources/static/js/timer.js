@@ -1,230 +1,103 @@
-// Timer functionality
+let executionId = null;
 let timerInterval = null;
-let currentExecutionId = null;
-let isActive = false;
-let isPaused = false;
+let isRunning = false;
+let currentSeconds = 0;
 
-const API_BASE = '/api/timer';
+function updateDisplay() {
+    let hours = Math.floor(currentSeconds / 3600);
+    let minutes = Math.floor((currentSeconds % 3600) / 60);
+    let seconds = currentSeconds % 60;
 
-document.addEventListener('DOMContentLoaded', function() {
-    const choreId = document.getElementById('choreId')?.value;
-    if (choreId) {
-        checkActiveTimer();
-    }
-
-    // Обработка закрытия страницы
-    window.addEventListener('beforeunload', function() {
-        if (isActive && currentExecutionId) {
-            // Не отправляем автоматически - пользователь должен сам остановить
-            return "You have an active timer. Are you sure you want to leave?";
-        }
-    });
-});
-
-function checkActiveTimer() {
-    fetch(API_BASE + '/active', {
-        method: 'GET',
-        headers: {
-            'Content-Type': 'application/json'
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success && data.data && data.data.status === 'active') {
-            currentExecutionId = data.data.executionId;
-            isActive = true;
-            updateUIForActiveTimer();
-            startTimerDisplay(data.data.startTime);
-        }
-    })
-    .catch(error => {
-        console.error('Error checking active timer:', error);
-    });
+    document.getElementById('hours').textContent = String(hours).padStart(2, '0');
+    document.getElementById('minutes').textContent = String(minutes).padStart(2, '0');
+    document.getElementById('seconds').textContent = String(seconds).padStart(2, '0');
 }
 
 function startTimer() {
     const choreId = document.getElementById('choreId').value;
 
-    fetch(API_BASE + '/start', {
+    fetch('/api/timer/start', {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ choreId: parseInt(choreId) })
     })
     .then(response => response.json())
     .then(data => {
-        if (data.success) {
-            currentExecutionId = data.data.executionId;
-            isActive = true;
-            updateUIForActiveTimer();
-            startTimerDisplay(data.data.startTime);
-        } else {
-            showError(data.message);
-        }
+        executionId = data.executionId;
+        isRunning = true;
+        currentSeconds = 0;
+        updateDisplay();
+
+        timerInterval = setInterval(() => {
+            if (isRunning) currentSeconds++;
+            updateDisplay();
+        }, 1000);
+
+        document.getElementById('startBtn').style.display = 'none';
+        document.getElementById('pauseBtn').style.display = 'inline-block';
+        document.getElementById('stopBtn').style.display = 'inline-block';
     })
     .catch(error => {
-        console.error('Error starting timer:', error);
-        showError('Failed to start timer');
+        alert('Error starting timer: ' + error);
     });
 }
 
 function pauseTimer() {
-    if (!currentExecutionId) return;
-
-    fetch(API_BASE + '/pause', {
+    fetch('/api/timer/pause', {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ executionId: currentExecutionId })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ executionId: executionId })
     })
     .then(response => response.json())
     .then(data => {
-        if (data.success) {
-            isActive = false;
-            isPaused = true;
-            updateUIForPausedTimer();
-            if (timerInterval) {
-                clearInterval(timerInterval);
-                timerInterval = null;
-            }
-        } else {
-            showError(data.message);
-        }
-    })
-    .catch(error => {
-        console.error('Error pausing timer:', error);
-        showError('Failed to pause timer');
+        isRunning = false;
+        document.getElementById('pauseBtn').style.display = 'none';
+        document.getElementById('resumeBtn').style.display = 'inline-block';
     });
 }
 
 function resumeTimer() {
-    if (!currentExecutionId) return;
-
-    fetch(API_BASE + '/resume', {
+    fetch('/api/timer/resume', {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ executionId: currentExecutionId })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ executionId: executionId })
     })
     .then(response => response.json())
     .then(data => {
-        if (data.success) {
-            isActive = true;
-            isPaused = false;
-            updateUIForActiveTimer();
-            startTimerDisplay(data.data.startTime);
-        } else {
-            showError(data.message);
-        }
-    })
-    .catch(error => {
-        console.error('Error resuming timer:', error);
-        showError('Failed to resume timer');
+        isRunning = true;
+        document.getElementById('resumeBtn').style.display = 'none';
+        document.getElementById('pauseBtn').style.display = 'inline-block';
     });
 }
 
 function stopTimer() {
-    if (!currentExecutionId) return;
+    if (!executionId) {
+        alert('No active timer to stop');
+        window.location.href = '/dashboard';
+        return;
+    }
 
-    fetch(API_BASE + '/stop', {
+    clearInterval(timerInterval);
+
+    fetch('/api/timer/stop', {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ executionId: currentExecutionId })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ executionId: executionId })
     })
     .then(response => response.json())
     .then(data => {
-        if (data.success) {
-            isActive = false;
-            isPaused = false;
-            updateUIForStoppedTimer();
-            if (timerInterval) {
-                clearInterval(timerInterval);
-                timerInterval = null;
-            }
-            showSuccess('Task completed! Waiting for parent approval.');
-
-            // Перенаправление через 2 секунды
-            setTimeout(() => {
-                window.location.href = '/chores';
-            }, 2000);
+        if (data.pointsAwarded && data.pointsAwarded > 0) {
+            alert('✅ Task completed! You earned ' + data.pointsAwarded + ' points!');
+        } else if (data.status === 'completed') {
+            alert('⏳ Task completed! Waiting for parent approval.');
         } else {
-            showError(data.message);
+            alert('Task completed!');
         }
+        window.location.href = '/dashboard';
     })
     .catch(error => {
-        console.error('Error stopping timer:', error);
-        showError('Failed to stop timer');
+        console.error('Error:', error);
+        alert('Task completed! Redirecting to dashboard...');
+        window.location.href = '/dashboard';
     });
-}
-
-let timerStartTime = null;
-
-function startTimerDisplay(startTime) {
-    timerStartTime = new Date(startTime);
-    if (timerInterval) {
-        clearInterval(timerInterval);
-    }
-    updateTimerDisplay();
-    timerInterval = setInterval(updateTimerDisplay, 1000);
-}
-
-function updateTimerDisplay() {
-    if (!timerStartTime) return;
-
-    const now = new Date();
-    let diffSeconds = Math.floor((now - timerStartTime) / 1000);
-
-    // Проверка на отрицательное время (если startTime в будущем)
-    if (diffSeconds < 0) diffSeconds = 0;
-
-    const hours = Math.floor(diffSeconds / 3600);
-    const minutes = Math.floor((diffSeconds % 3600) / 60);
-    const seconds = diffSeconds % 60;
-
-    const timerElement = document.getElementById('timer');
-    if (timerElement) {
-        timerElement.textContent = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-    }
-}
-
-function updateUIForActiveTimer() {
-    document.getElementById('btn-start')?.setAttribute('style', 'display: none');
-    document.getElementById('btn-pause')?.setAttribute('style', 'display: inline-block');
-    document.getElementById('btn-resume')?.setAttribute('style', 'display: none');
-    document.getElementById('btn-stop')?.setAttribute('style', 'display: inline-block');
-}
-
-function updateUIForPausedTimer() {
-    document.getElementById('btn-start')?.setAttribute('style', 'display: none');
-    document.getElementById('btn-pause')?.setAttribute('style', 'display: none');
-    document.getElementById('btn-resume')?.setAttribute('style', 'display: inline-block');
-    document.getElementById('btn-stop')?.setAttribute('style', 'display: inline-block');
-}
-
-function updateUIForStoppedTimer() {
-    document.getElementById('btn-start')?.setAttribute('style', 'display: inline-block');
-    document.getElementById('btn-pause')?.setAttribute('style', 'display: none');
-    document.getElementById('btn-resume')?.setAttribute('style', 'display: none');
-    document.getElementById('btn-stop')?.setAttribute('style', 'display: none');
-}
-
-function showError(message) {
-    const errorDiv = document.createElement('div');
-    errorDiv.className = 'alert alert-danger';
-    errorDiv.textContent = message;
-    document.querySelector('.timer-container')?.insertBefore(errorDiv, document.querySelector('.timer-card'));
-    setTimeout(() => errorDiv.remove(), 3000);
-}
-
-function showSuccess(message) {
-    const successDiv = document.createElement('div');
-    successDiv.className = 'alert alert-success';
-    successDiv.textContent = message;
-    document.querySelector('.timer-container')?.insertBefore(successDiv, document.querySelector('.timer-card'));
-    setTimeout(() => successDiv.remove(), 3000);
 }

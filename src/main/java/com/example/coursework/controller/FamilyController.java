@@ -2,6 +2,7 @@ package com.example.coursework.controller;
 
 import com.example.coursework.model.User;
 import com.example.coursework.model.Chore;
+import com.example.coursework.model.UserRole;
 import com.example.coursework.service.UserService;
 import com.example.coursework.service.ChoreService;
 import lombok.RequiredArgsConstructor;
@@ -78,9 +79,17 @@ public class FamilyController {
 
     @PostMapping("/join")
     public String joinFamily(@RequestParam String inviteCode,
+                             @RequestParam(required = false) String role,  // Добавлен параметр role
                              @AuthenticationPrincipal UserDetails userDetails) {
         User user = userService.findByUsername(userDetails.getUsername());
         userService.joinFamily(user.getId(), inviteCode);
+
+        // Если указана роль и пользователь присоединяется как ребенок
+        if ("CHILD".equals(role) && user.getRole() == UserRole.PARENT) {
+            user.setRole(UserRole.CHILD);
+            userService.updateUser(user);  // Нужно добавить этот метод в UserService
+        }
+
         return "redirect:/family";
     }
 

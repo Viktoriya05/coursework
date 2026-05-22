@@ -29,7 +29,10 @@ public class UserService {
     private final PointTransactionRepository pointTransactionRepository;
     private final ChoreRepository choreRepository;
     private final PasswordEncoder passwordEncoder;
-
+    @Transactional
+    public User updateUser(User user) {
+        return userRepository.save(user);
+    }
     @Transactional
     public User register(String username, String email, String password,
                          String firstName, String lastName, String role) {
@@ -46,7 +49,7 @@ public class UserService {
         user.setPassword(passwordEncoder.encode(password));
         user.setFirstName(firstName != null ? firstName : "");
         user.setLastName(lastName != null ? lastName : "");
-        user.setRole(UserRole.valueOf(role));
+        user.setRole(UserRole.valueOf(role));  // ← role приходит "PARENT" из AuthController
         user.setPoints(0);
 
         return userRepository.save(user);

@@ -23,79 +23,96 @@
 </nav>
 
 <div class="container">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
-        <a th:href="@{/planning(weekStart=${weekStart.minusWeeks(1)})}" class="btn btn-secondary">← Previous Week</a>
-        <h1 th:text="${weekStart} + ' - ' + ${weekEnd}"></h1>
-        <a th:href="@{/planning(weekStart=${weekStart.plusWeeks(1)})}" class="btn btn-secondary">Next Week →</a>
+    <!-- Навигация по неделям -->
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+        <a th:href="@{/planning(weekStart=${weekStartDate.minusWeeks(1)})}" class="btn btn-secondary">← Previous Week</a>
+        <h2 style="color: #4a5568; font-weight: 600;" th:text="${weekStart} + ' - ' + ${weekEnd}"></h2>
+        <a th:href="@{/planning(weekStart=${weekStartDate.plusWeeks(1)})}" class="btn btn-secondary">Next Week →</a>
     </div>
 
+    <!-- Статистика - простая, но красивая -->
     <div class="stats-grid">
-        <div class="stat-card">
-            <div class="stat-value" th:text="${summary.totalChores}">0</div>
+        <div class="stat-card" th:if="${plan != null}">
+            <div class="stat-value" th:text="${plan.items.size()}">0</div>
             <div class="stat-label">Total Tasks</div>
         </div>
-        <div class="stat-card">
-            <div class="stat-value" th:text="${summary.completedChores}">0</div>
-            <div class="stat-label">Completed</div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-value" th:text="${summary.completionRate} + '%'">0%</div>
-            <div class="stat-label">Completion Rate</div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-value" th:text="${summary.totalEstimatedMinutes} + ' min'">0</div>
-            <div class="stat-label">Estimated Time</div>
+        <div class="stat-card" th:if="${plan == null}">
+            <div class="stat-value">0</div>
+            <div class="stat-label">Total Tasks</div>
         </div>
     </div>
 
+    <!-- Создание плана -->
     <div class="card" th:if="${plan == null}">
-        <p>No plan for this week.</p>
+        <div class="card-header">
+            <h3>📅 Weekly Plan</h3>
+        </div>
+        <p style="margin-bottom: 1rem;">No plan for this week. Create one to organize your tasks!</p>
         <form method="post" th:action="@{/planning/create}">
+            <input type="hidden" name="weekStart" th:value="${weekStartDate}">
             <button type="submit" class="btn btn-success">Create Weekly Plan</button>
         </form>
     </div>
 
-    <div class="card" th:if="${plan != null}">
-        <div class="card-header">
-            <h3>📅 Weekly Plan</h3>
-        </div>
-
-        <div style="margin-bottom: 1.5rem;">
-            <h4>➕ Add Task to Plan</h4>
-            <form method="post" th:action="@{/planning/add-chore}" class="form-row" style="align-items: flex-end;">
+    <!-- План существует -->
+    <div th:if="${plan != null}">
+        <!-- Добавление задачи -->
+        <div class="card">
+            <div class="card-header">
+                <h3>➕ Add Task to Plan</h3>
+            </div>
+            <form method="post" th:action="@{/planning/add-chore}">
                 <input type="hidden" name="planId" th:value="${plan.id}">
-                <div class="form-group" style="flex: 2;">
-                    <select name="choreId" required>
-                        <option value="">Select Task</option>
-                        <option th:each="chore : ${userChores}" th:value="${chore.id}"
-                                th:text="${chore.name} + ' (⭐' + ${chore.points} + ' pts)'"></option>
-                    </select>
-                </div>
-                <div class="form-group" style="flex: 1;">
-                    <input type="date" name="scheduledDate" required>
-                </div>
-                <div>
-                    <button type="submit" class="btn btn-success">Add to Plan</button>
+                <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+                    <div style="flex: 2;">
+                        <select name="choreId" required class="form-control" style="width: 100%; padding: 0.75rem; border-radius: 12px; border: 1px solid #e2e8f0;">
+                            <option value="">Select Task</option>
+                            <option th:each="chore : ${userChores}" th:value="${chore.id}"
+                                    th:text="${chore.name} + ' (⭐' + ${chore.points} + ' pts)'"></option>
+                        </select>
+                    </div>
+                    <div style="flex: 1;">
+                        <input type="date" name="scheduledDate" th:value="${weekStartDate}" required class="form-control" style="width: 100%; padding: 0.75rem; border-radius: 12px; border: 1px solid #e2e8f0;">
+                    </div>
+                    <div>
+                        <button type="submit" class="btn btn-success" style="padding: 0.75rem 1.5rem;">Add to Plan</button>
+                    </div>
                 </div>
             </form>
         </div>
 
-        <div class="week-calendar">
-            <div th:each="day : ${#numbers.sequence(0, 6)}" class="calendar-day">
-                <div class="day-header">
-                    <span th:text="${#temporals.format(weekStart.plusDays(day), 'EEEE')}"></span><br>
-                    <small th:text="${#temporals.format(weekStart.plusDays(day), 'MMM dd')}"></small>
-                </div>
-                <div th:each="item : ${plan.items}" th:if="${item.scheduledDate == weekStart.plusDays(day)}" class="day-task" th:classappend="${item.completed} ? 'completed' : ''">
-                    <strong th:text="${item.chore.name}"></strong>
-                    <div><small>⭐ <span th:text="${item.chore.points}"></span> pts | ⏱️ <span th:text="${item.estimatedMinutes}"></span> min</small></div>
-                    <div style="margin-top: 0.5rem;">
-                        <a th:href="'/timer?choreId=' + ${item.chore.id}" class="btn btn-success btn-sm" th:unless="${item.completed}">▶ Start</a>
-                        <form method="post" th:action="@{'/planning/item/' + ${item.id} + '/remove'}" style="display: inline;">
-                            <button type="submit" class="btn btn-danger btn-sm">✗ Remove</button>
-                        </form>
+        <!-- Список задач в плане - календарь -->
+        <div class="card">
+            <div class="card-header">
+                <h3>📅 This Week's Plan</h3>
+            </div>
+
+            <div class="week-calendar" style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 1rem;">
+                <div th:each="day : ${#numbers.sequence(0, 6)}" class="calendar-day">
+                    <div class="day-header" style="text-align: center; padding: 0.5rem; background: linear-gradient(135deg, #A8E6CF, #B5EAD7); border-radius: 12px; margin-bottom: 0.5rem;">
+                        <div style="font-weight: bold;" th:text="${#temporals.format(weekStartDate.plusDays(day), 'EEEE')}"></div>
+                        <div style="font-size: 0.8rem;" th:text="${#temporals.format(weekStartDate.plusDays(day), 'dd.MM')}"></div>
+                    </div>
+                    <div class="day-tasks">
+                        <div th:each="item : ${plan.items}" th:if="${item.scheduledDate == weekStartDate.plusDays(day)}"
+                             style="background: #f7fafc; padding: 0.5rem; margin-bottom: 0.5rem; border-radius: 8px; border-left: 3px solid #A8E6CF;">
+                            <div style="font-weight: bold; font-size: 0.85rem;" th:text="${item.chore.name}"></div>
+                            <div style="font-size: 0.7rem; color: #718096;">
+                                ⭐ <span th:text="${item.chore.points}"></span> pts | ⏱️ <span th:text="${item.estimatedMinutes}"></span> min
+                            </div>
+                            <div style="margin-top: 0.5rem; display: flex; gap: 0.3rem;">
+                                <a th:href="'/timer?choreId=' + ${item.chore.id}" class="btn btn-success btn-sm" th:unless="${item.completed}" style="padding: 0.2rem 0.5rem; font-size: 0.7rem;">▶ Start</a>
+                                <form method="post" th:action="@{'/planning/item/' + ${item.id} + '/remove'}" style="display: inline;">
+                                    <button type="submit" class="btn btn-danger btn-sm" style="padding: 0.2rem 0.5rem; font-size: 0.7rem;">✗ Remove</button>
+                                </form>
+                            </div>
+                        </div>
                     </div>
                 </div>
+            </div>
+
+            <div th:if="${plan.items.empty}" style="text-align: center; padding: 3rem; color: #a0aec0;">
+                ✨ No tasks in plan. Add a task above!
             </div>
         </div>
     </div>

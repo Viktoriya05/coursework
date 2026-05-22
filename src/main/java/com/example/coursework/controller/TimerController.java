@@ -22,6 +22,7 @@ public class TimerController {
     private final TimerService timerService;
     private final UserService userService;
     private final ChoreService choreService;
+
     @PostMapping("/stop")
     public ResponseEntity<TimerResponse> stopTimer(@RequestBody TimerRequest request,
                                                    @AuthenticationPrincipal UserDetails userDetails) {
@@ -29,6 +30,7 @@ public class TimerController {
         TimerResponse response = timerService.stopTimer(user.getId(), request.getExecutionId());
         return ResponseEntity.ok(response);
     }
+
     @GetMapping("/timer")
     public String timerPage(@RequestParam Long choreId,
                             Model model,

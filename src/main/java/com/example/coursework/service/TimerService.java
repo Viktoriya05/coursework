@@ -8,7 +8,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.time.Duration;
-
+import java.util.List;
+import com.example.coursework.repository.UserRepository;
 @Service
 @RequiredArgsConstructor
 public class TimerService {
@@ -17,7 +18,7 @@ public class TimerService {
     private final ChoreRepository choreRepository;
     private final UserService userService;
     private final PlanningService planningService;
-
+    private final UserRepository userRepository;
     @Transactional
     public TimerResponse startTimer(Long userId, Long choreId) {
         TaskExecution active = executionRepository.findActiveExecution(userId);
@@ -99,6 +100,10 @@ public class TimerService {
         TaskExecution execution = executionRepository.findById(executionId)
                 .orElseThrow(() -> new RuntimeException("Execution not found"));
 
+        if (!execution.getUser().getId().equals(userId)) {
+            throw new RuntimeException("You don't have permission to stop this timer");
+        }
+
         if (execution.getStatus() != ExecutionStatus.ACTIVE && execution.getStatus() != ExecutionStatus.PAUSED) {
             throw new RuntimeException("Timer is not active or paused");
         }
@@ -117,27 +122,35 @@ public class TimerService {
         }
 
         execution.setStatus(ExecutionStatus.COMPLETED);
+        execution = executionRepository.save(execution);
 
         Chore chore = execution.getChore();
+        User child = chore.getUser();
+
+        // Находим родителя (кто создал задачу или родитель в семье)
+        User parent = findParentForChild(child);
 
         // Для родителя - сразу начисляем очки и завершаем задачу
-        if (chore.getUser().getRole() == UserRole.PARENT) {
+        if (child.getRole() == UserRole.PARENT) {
             chore.setStatus(ChoreStatus.COMPLETED);
-            // Начисляем очки
             if (chore.getPoints() != null && chore.getPoints() > 0) {
-                userService.addPoints(chore.getUser().getId(), chore.getPoints());
+                userService.addPoints(child.getId(), chore.getPoints());
             }
-            // Синхронизируем с планом
+            chore.setCompletedAt(endTime);
+            choreRepository.save(chore);
             planningService.syncTaskCompletion(chore.getId(), true);
-        } else {
-            // Для ребенка - отправляем на проверку родителю
-            chore.setStatus(ChoreStatus.NEEDS_REVIEW);
         }
+        // Для ребенка - всегда отправляем на проверку родителю (даже если задачу создал сам ребенок)
+        else if (child.getRole() == UserRole.CHILD) {
+            // Если у задачи нет assignedBy (ребенок взял сам), все равно отправляем на проверку
+            chore.setStatus(ChoreStatus.NEEDS_REVIEW);
+            chore.setCompletedAt(endTime);
+            choreRepository.save(chore);
 
-        chore.setCompletedAt(endTime);
-        choreRepository.save(chore);
-
-        execution = executionRepository.save(execution);
+            // Логируем для отладки
+            System.out.println("Task completed by child. Parent to review: " +
+                    (parent != null ? parent.getUsername() : "No parent found"));
+        }
 
         TimerResponse response = new TimerResponse();
         response.setExecutionId(execution.getId());
@@ -145,7 +158,27 @@ public class TimerService {
         response.setStatus("completed");
         response.setPointsAwarded(chore.getPoints());
 
+        if (child.getRole() == UserRole.PARENT) {
+            response.setMessage("Task completed! You earned " + chore.getPoints() + " points!");
+        } else {
+            response.setMessage("Task completed! Waiting for parent approval.");
+        }
+
         return response;
+    }
+
+    // Добавить вспомогательный метод для поиска родителя
+    private User findParentForChild(User child) {
+        if (child.getFamily() == null) {
+            return null;
+        }
+
+        // Ищем родителя в той же семье
+        List<User> familyMembers = userRepository.findByFamily(child.getFamily());
+        return familyMembers.stream()
+                .filter(member -> member.getRole() == UserRole.PARENT)
+                .findFirst()
+                .orElse(null);
     }
 
     @Transactional

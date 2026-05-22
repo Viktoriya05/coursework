@@ -22,7 +22,8 @@ public interface ChoreRepository extends JpaRepository<Chore, Long> {
     List<Chore> findByCategoryName(String categoryName);
     Page<Chore> findByUser(User user, Pageable pageable);
     List<Chore> findByAssignedByAndStatus(User parent, ChoreStatus status);
-
+    @Query("SELECT c FROM Chore c WHERE c.user.family.id = :familyId AND c.status = 'NEEDS_REVIEW' AND c.user.role = 'CHILD' ORDER BY c.completedAt DESC")
+    List<Chore> findPendingReviewByFamily(@Param("familyId") Long familyId);
     @Query("SELECT c FROM Chore c WHERE c.user.id = :userId AND c.status = :status AND c.dueDate <= CURRENT_DATE")
     List<Chore> findOverdueTasks(@Param("userId") Long userId, @Param("status") ChoreStatus status);
 

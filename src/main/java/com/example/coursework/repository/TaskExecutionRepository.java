@@ -14,21 +14,30 @@ import java.util.List;
 
 @Repository
 public interface TaskExecutionRepository extends JpaRepository<TaskExecution, Long> {
-    List<TaskExecution> findByUser(User user);
-    List<TaskExecution> findByChore(Chore chore);
 
-    @Query("SELECT t FROM TaskExecution t WHERE t.user.id = :userId AND t.startTime BETWEEN :start AND :end ORDER BY t.startTime DESC")
-    List<TaskExecution> findByUserAndStartTimeBetween(@Param("userId") Long userId, @Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
-
-    @Query("SELECT t FROM TaskExecution t WHERE t.user.id = :userId AND t.status = 'ACTIVE'")
+    @Query("SELECT te FROM TaskExecution te WHERE te.user.id = :userId AND te.status = 'ACTIVE'")
     TaskExecution findActiveExecution(@Param("userId") Long userId);
 
-    @Query("SELECT t FROM TaskExecution t WHERE t.chore.id = :choreId AND t.user.id = :userId AND t.status = 'COMPLETED' ORDER BY t.createdAt DESC")
-    List<TaskExecution> findLastNExecutions(@Param("choreId") Long choreId, @Param("userId") Long userId, Pageable pageable);
+    @Query("SELECT te FROM TaskExecution te WHERE te.user.id = :userId AND te.startTime BETWEEN :start AND :end")
+    List<TaskExecution> findByUserAndStartTimeBetween(@Param("userId") Long userId,
+                                                      @Param("start") LocalDateTime start,
+                                                      @Param("end") LocalDateTime end);
 
-    @Query("SELECT AVG(t.durationSeconds) FROM TaskExecution t WHERE t.chore.id = :choreId AND t.user.id = :userId AND t.status = 'COMPLETED'")
-    Double getAverageExecutionTimeForUser(@Param("choreId") Long choreId, @Param("userId") Long userId);
+    List<TaskExecution> findByUser(User user);
 
-    @Query("SELECT AVG(t.durationSeconds) FROM TaskExecution t WHERE t.chore.id = :choreId AND t.status = 'COMPLETED'")
-    Double getAverageExecutionTimeForChore(@Param("choreId") Long choreId);
+    @Query("SELECT te FROM TaskExecution te WHERE te.chore.id = :choreId AND te.user.id = :userId AND te.status = 'COMPLETED' ORDER BY te.endTime DESC")
+    List<TaskExecution> findLastNExecutions(@Param("choreId") Long choreId,
+                                            @Param("userId") Long userId,
+                                            Pageable pageable);
+
+    @Query("SELECT te FROM TaskExecution te WHERE te.chore.id = :choreId AND te.status = 'COMPLETED' ORDER BY te.endTime DESC")
+    List<TaskExecution> findLastNExecutionsForChore(@Param("choreId") Long choreId, Pageable pageable);
+
+    @Query("SELECT te FROM TaskExecution te WHERE te.chore.id = :choreId ORDER BY te.createdAt DESC")
+    List<TaskExecution> findTopByChoreIdOrderByCreatedAtDesc(@Param("choreId") Long choreId, Pageable pageable);
+
+    @Query("SELECT te FROM TaskExecution te WHERE te.user = :user AND te.chore = :chore AND te.status = 'COMPLETED' ORDER BY te.endTime DESC")
+    List<TaskExecution> findLastNCompletionsByUserAndChore(@Param("user") User user,
+                                                           @Param("chore") Chore chore,
+                                                           Pageable pageable);
 }

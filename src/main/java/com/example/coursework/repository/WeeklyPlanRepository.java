@@ -8,6 +8,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -16,4 +17,7 @@ public interface WeeklyPlanRepository extends JpaRepository<WeeklyPlan, Long> {
 
     @Query("SELECT wp FROM WeeklyPlan wp WHERE wp.user.id = :userId AND wp.weekStart <= :date AND wp.weekEnd >= :date")
     Optional<WeeklyPlan> findPlanContainingDate(@Param("userId") Long userId, @Param("date") LocalDate date);
+
+    @Query("SELECT DISTINCT wp FROM WeeklyPlan wp JOIN wp.items item WHERE item.chore.id = :choreId")
+    List<WeeklyPlan> findPlansContainingChore(@Param("choreId") Long choreId);
 }

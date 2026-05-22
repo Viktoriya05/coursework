@@ -70,21 +70,27 @@
         })
         .then(response => response.json())
         .then(data => {
-            executionId = data.executionId;
-            isRunning = true;
-            currentSeconds = 0;
-            updateDisplay();
-
-            timerInterval = setInterval(() => {
-                if (isRunning) currentSeconds++;
+            // ВАЖНО: данные обернуты в ApiResponse
+            if (data.success && data.data) {
+                executionId = data.data.executionId;
+                isRunning = true;
+                currentSeconds = 0;
                 updateDisplay();
-            }, 1000);
 
-            document.getElementById('startBtn').style.display = 'none';
-            document.getElementById('pauseBtn').style.display = 'inline-block';
-            document.getElementById('stopBtn').style.display = 'inline-block';
+                timerInterval = setInterval(() => {
+                    if (isRunning) currentSeconds++;
+                    updateDisplay();
+                }, 1000);
+
+                document.getElementById('startBtn').style.display = 'none';
+                document.getElementById('pauseBtn').style.display = 'inline-block';
+                document.getElementById('stopBtn').style.display = 'inline-block';
+            } else {
+                alert('Error: ' + (data.message || 'Could not start timer'));
+            }
         })
         .catch(error => {
+            console.error('Error:', error);
             alert('Error starting timer: ' + error);
         });
     }
@@ -97,9 +103,17 @@
         })
         .then(response => response.json())
         .then(data => {
-            isRunning = false;
-            document.getElementById('pauseBtn').style.display = 'none';
-            document.getElementById('resumeBtn').style.display = 'inline-block';
+            if (data.success) {
+                isRunning = false;
+                document.getElementById('pauseBtn').style.display = 'none';
+                document.getElementById('resumeBtn').style.display = 'inline-block';
+            } else {
+                alert('Error: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error pausing timer');
         });
     }
 
@@ -111,9 +125,17 @@
         })
         .then(response => response.json())
         .then(data => {
-            isRunning = true;
-            document.getElementById('resumeBtn').style.display = 'none';
-            document.getElementById('pauseBtn').style.display = 'inline-block';
+            if (data.success) {
+                isRunning = true;
+                document.getElementById('resumeBtn').style.display = 'none';
+                document.getElementById('pauseBtn').style.display = 'inline-block';
+            } else {
+                alert('Error: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error resuming timer');
         });
     }
 
@@ -133,12 +155,15 @@
         })
         .then(response => response.json())
         .then(data => {
-            if (data.pointsAwarded && data.pointsAwarded > 0) {
-                alert('✅ Task completed! You earned ' + data.pointsAwarded + ' points!');
-            } else if (data.status === 'completed') {
-                alert('⏳ Task completed! Waiting for parent approval.');
+            if (data.success && data.data) {
+                const pointsAwarded = data.data.pointsAwarded;
+                if (pointsAwarded && pointsAwarded > 0) {
+                    alert('✅ Task completed! You earned ' + pointsAwarded + ' points!');
+                } else {
+                    alert('⏳ Task completed! Waiting for parent approval.');
+                }
             } else {
-                alert('Task completed!');
+                alert('Task completed! ' + (data.message || ''));
             }
             window.location.href = '/dashboard';
         })

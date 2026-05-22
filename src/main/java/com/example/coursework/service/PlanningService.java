@@ -30,7 +30,6 @@ public class PlanningService {
         Chore chore = choreRepository.findById(choreId)
                 .orElseThrow(() -> new RuntimeException("Chore not found"));
 
-        // Проверяем, не добавлена ли уже эта задача на этот день
         boolean alreadyExists = plan.getItems().stream()
                 .anyMatch(item -> item.getChore().getId().equals(choreId) &&
                         item.getScheduledDate().equals(scheduledDate));
@@ -38,9 +37,7 @@ public class PlanningService {
             throw new RuntimeException("This task is already planned for this day");
         }
 
-        // Если задача не принадлежит пользователю, копируем её в его задачи
         if (chore.getUser() == null || !chore.getUser().getId().equals(plan.getUser().getId())) {
-            // Создаем копию задачи для пользователя
             Chore userChore = new Chore();
             userChore.setName(chore.getName());
             userChore.setDescription(chore.getDescription());
@@ -51,7 +48,6 @@ public class PlanningService {
             userChore.setDueDate(scheduledDate);
             chore = choreRepository.save(userChore);
         } else {
-            // Обновляем дату выполнения у существующей задачи
             chore.setDueDate(scheduledDate);
             chore = choreRepository.save(chore);
         }
@@ -69,6 +65,7 @@ public class PlanningService {
 
         return planItemRepository.save(item);
     }
+
     @Transactional
     public WeeklyPlan createWeeklyPlan(Long userId, LocalDate weekStart) {
         User user = userRepository.findById(userId)
@@ -88,7 +85,6 @@ public class PlanningService {
     }
 
     private Integer calculateEstimatedTime(Long choreId, Long userId) {
-        // Сначала пробуем среднее по пользователю (последние 5 выполнений)
         List<TaskExecution> userExecutions = executionRepository.findLastNExecutions(
                 choreId, userId, PageRequest.of(0, 5));
 
@@ -100,7 +96,6 @@ public class PlanningService {
             if (avg > 0) return (int) (avg / 60);
         }
 
-        // Если нет данных по пользователю, пробуем среднее по всей семье
         User user = userRepository.findById(userId).orElse(null);
         if (user != null && user.getFamily() != null) {
             List<User> familyMembers = userRepository.findByFamily(user.getFamily());
@@ -123,7 +118,6 @@ public class PlanningService {
             }
         }
 
-        // Если нет данных вообще, возвращаем null ("недостаточно данных")
         return null;
     }
 
@@ -164,22 +158,29 @@ public class PlanningService {
         item.setCompleted(true);
         planItemRepository.save(item);
     }
+
     @Transactional
     public void syncTaskCompletion(Long choreId, boolean completed) {
         Chore chore = choreRepository.findById(choreId)
                 .orElseThrow(() -> new RuntimeException("Chore not found"));
 
+        // Обновляем статус задачи
         if (completed) {
-            chore.setStatus(ChoreStatus.COMPLETED);
-            chore.setCompletedAt(LocalDateTime.now());  // Теперь LocalDateTime доступен
+            if (chore.getStatus() != ChoreStatus.COMPLETED) {
+                chore.setStatus(ChoreStatus.COMPLETED);
+                chore.setCompletedAt(LocalDateTime.now());
+                choreRepository.save(chore);
+            }
         } else {
-            chore.setStatus(ChoreStatus.PENDING);
-            chore.setCompletedAt(null);
+            if (chore.getStatus() != ChoreStatus.PENDING) {
+                chore.setStatus(ChoreStatus.PENDING);
+                chore.setCompletedAt(null);
+                choreRepository.save(chore);
+            }
         }
-        choreRepository.save(chore);
 
         // Обновляем статус во всех планах, где есть эта задача
-        List<WeeklyPlan> plans = planRepository.findAll();
+        List<WeeklyPlan> plans = planRepository.findPlansContainingChore(choreId);
         for (WeeklyPlan plan : plans) {
             for (PlanItem item : plan.getItems()) {
                 if (item.getChore().getId().equals(choreId)) {
@@ -189,6 +190,7 @@ public class PlanningService {
             }
         }
     }
+
     @Transactional
     public void removePlanItem(Long itemId) {
         planItemRepository.deleteById(itemId);
